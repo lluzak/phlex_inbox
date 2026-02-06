@@ -11,7 +11,8 @@ class Views::Layouts::ApplicationLayout < Phlex::HTML
         meta(name: "viewport", content: "width=device-width,initial-scale=1")
         csrf_meta_tags
         csp_meta_tag
-        stylesheet_link_tag "app", "data-turbo-track": "reload"
+        stylesheet_link_tag "tailwind", "data-turbo-track": "reload"
+        stylesheet_link_tag "application", "data-turbo-track": "reload"
         javascript_importmap_tags
       end
       body(class: "h-full", data: { controller: "keyboard" }) do

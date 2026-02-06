@@ -69,7 +69,7 @@ class Components::Sidebar < Components::Base
   private
 
   def render_folder_link(folder)
-    active = @current_folder == folder[:key]
+    active = @current_folder.to_s == folder[:key].to_s
     count = unread_count_for(folder[:scope])
 
     link_to(
