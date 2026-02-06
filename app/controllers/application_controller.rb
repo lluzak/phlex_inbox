@@ -1,7 +1,11 @@
 class ApplicationController < ActionController::Base
-  # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
 
-  # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
+
+  helper_method :current_contact
+
+  def current_contact
+    @current_contact ||= Contact.find_by!(email: "you@example.com")
+  end
 end
