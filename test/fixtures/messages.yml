@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  subject: MyString
+  body: MyText
+  sender: one
+  recipient: one
+  read_at: 2026-02-06 23:58:12
+  starred: false
+  label: MyString
+  replied_to: one
+
+two:
+  subject: MyString
+  body: MyText
+  sender: two
+  recipient: two
+  read_at: 2026-02-06 23:58:12
+  starred: false
+  label: MyString
+  replied_to: two
