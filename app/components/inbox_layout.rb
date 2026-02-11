@@ -2,14 +2,18 @@
 
 class Components::InboxLayout < Components::Base
   include Phlex::Rails::Helpers::TurboFrameTag
+  include Phlex::Rails::Helpers::TurboStreamFrom
 
-  def initialize(sidebar:, message_list:, message_detail: nil)
+  def initialize(sidebar:, message_list:, message_detail: nil, current_contact: nil)
     @sidebar = sidebar
     @message_list = message_list
     @message_detail = message_detail
+    @current_contact = current_contact
   end
 
   def view_template
+    turbo_stream_from(@current_contact, :messages) if @current_contact
+
     div(class: "h-screen flex flex-col") do
       header(class: "bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0") do
         h1(class: "text-xl font-bold text-gray-900") { "Phlex Inbox" }

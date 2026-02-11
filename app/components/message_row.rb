@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 class Components::MessageRow < Components::Base
+  include Components::LiveComponent
   include Phlex::Rails::Helpers::LinkTo
   include Phlex::Rails::Helpers::TimeAgoInWords
+
+  subscribes_to :message
 
   def initialize(message:, selected: false)
     @message = message
@@ -47,6 +50,8 @@ class Components::MessageRow < Components::Base
   end
 
   private
+
+  attr_reader :message
 
   def row_classes
     base = "block border-b border-gray-100 hover:bg-gray-50 transition-colors"

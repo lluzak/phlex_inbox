@@ -10,7 +10,8 @@ class Views::Messages::Index < Views::Base
   def view_template
     render Components::InboxLayout.new(
       sidebar: Components::Sidebar.new(current_folder: @folder, current_contact: @current_contact),
-      message_list: Components::MessageList.new(messages: @messages, folder: @folder)
+      message_list: Components::MessageList.new(messages: @messages, folder: @folder),
+      current_contact: @current_contact
     )
 
     contacts = Contact.where.not(id: @current_contact.id).order(:name)

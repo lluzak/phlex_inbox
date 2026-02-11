@@ -19,7 +19,7 @@ class Components::MessageList < Components::Base
       end
 
       if @messages.any?
-        div do
+        div(id: "message_items") do
           @messages.each do |message|
             render MessageRow.new(
               message: message,

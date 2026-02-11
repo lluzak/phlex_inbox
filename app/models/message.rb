@@ -1,5 +1,12 @@
 class Message < ApplicationRecord
+  include Broadcastable
+
   LABELS = %w[inbox sent archive trash].freeze
+
+  broadcasts_component Components::MessageRow,
+    stream: ->(message) { [message.recipient, :messages] },
+    component: ->(message) { Components::MessageRow.new(message: message) },
+    prepend_target: "message_items"
 
   belongs_to :sender, class_name: "Contact"
   belongs_to :recipient, class_name: "Contact"
