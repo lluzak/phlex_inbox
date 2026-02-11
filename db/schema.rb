@@ -10,13 +10,31 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_06_225812) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_06_233544) do
   create_table "contacts", force: :cascade do |t|
     t.string "avatar_url"
     t.datetime "created_at", null: false
     t.string "email"
     t.string "name"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "labelings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "label_id", null: false
+    t.integer "message_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["label_id"], name: "index_labelings_on_label_id"
+    t.index ["message_id", "label_id"], name: "index_labelings_on_message_id_and_label_id", unique: true
+    t.index ["message_id"], name: "index_labelings_on_message_id"
+  end
+
+  create_table "labels", force: :cascade do |t|
+    t.string "color", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_labels_on_name", unique: true
   end
 
   create_table "messages", force: :cascade do |t|
@@ -38,6 +56,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_225812) do
     t.index ["starred"], name: "index_messages_on_starred"
   end
 
+  add_foreign_key "labelings", "labels"
+  add_foreign_key "labelings", "messages"
   add_foreign_key "messages", "contacts", column: "recipient_id"
   add_foreign_key "messages", "contacts", column: "sender_id"
   add_foreign_key "messages", "messages", column: "replied_to_id"

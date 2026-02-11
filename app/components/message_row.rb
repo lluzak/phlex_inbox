@@ -33,7 +33,10 @@ class Components::MessageRow < Components::Base
             end
           end
 
-          p(class: subject_classes) { @message.subject }
+          div(class: "flex items-center gap-1.5 min-w-0") do
+            p(class: subject_classes) { @message.subject }
+            label_badges
+          end
 
           p(class: "text-sm text-gray-500 truncate") do
             plain @message.preview(80)
@@ -69,6 +72,12 @@ class Components::MessageRow < Components::Base
       "text-sm text-gray-700 truncate"
     else
       "text-sm font-semibold text-gray-900 truncate"
+    end
+  end
+
+  def label_badges
+    @message.labels.each do |label|
+      render LabelBadge.new(label: label)
     end
   end
 

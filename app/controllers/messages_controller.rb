@@ -7,25 +7,25 @@ class MessagesController < ApplicationController
 
   def index
     @folder = "inbox"
-    @messages = current_contact.received_messages.inbox.newest_first
+    @messages = current_contact.received_messages.inbox.includes(:labels).newest_first
     render_message_list_or_full(@messages, @folder)
   end
 
   def sent
     @folder = "sent"
-    @messages = current_contact.sent_messages.sent_box.newest_first
+    @messages = current_contact.sent_messages.sent_box.includes(:labels).newest_first
     render_message_list_or_full(@messages, @folder)
   end
 
   def archive
     @folder = "archive"
-    @messages = current_contact.received_messages.archived.newest_first
+    @messages = current_contact.received_messages.archived.includes(:labels).newest_first
     render_message_list_or_full(@messages, @folder)
   end
 
   def trash
     @folder = "trash"
-    @messages = current_contact.received_messages.trashed.newest_first
+    @messages = current_contact.received_messages.trashed.includes(:labels).newest_first
     render_message_list_or_full(@messages, @folder)
   end
 
@@ -57,9 +57,10 @@ class MessagesController < ApplicationController
     @messages = if query.present?
       current_contact.received_messages
         .where("subject LIKE :q OR body LIKE :q", q: "%#{query}%")
+        .includes(:labels)
         .newest_first
     else
-      current_contact.received_messages.inbox.newest_first
+      current_contact.received_messages.inbox.includes(:labels).newest_first
     end
     @folder = query.present? ? "search" : "inbox"
 

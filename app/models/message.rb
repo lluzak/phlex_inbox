@@ -5,6 +5,8 @@ class Message < ApplicationRecord
   belongs_to :recipient, class_name: "Contact"
   belongs_to :replied_to, class_name: "Message", optional: true
   has_many :replies, class_name: "Message", foreign_key: :replied_to_id, dependent: :nullify, inverse_of: :replied_to
+  has_many :labelings, dependent: :destroy
+  has_many :labels, through: :labelings
 
   validates :subject, presence: true
   validates :body, presence: true
