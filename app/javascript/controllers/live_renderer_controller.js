@@ -6,6 +6,12 @@ const log = (...args) => console.log("[live-renderer]", ...args)
 
 const templateCache = new Map()
 
+async function decompress(base64) {
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))
+  return new Response(stream).json()
+}
+
 function compileTemplate(encoded) {
   if (templateCache.has(encoded)) return templateCache.get(encoded)
 
@@ -35,9 +41,10 @@ function subscribe(streamValue, controller) {
         connected: () => log("stream connected"),
         disconnected: () => log("stream disconnected"),
         rejected: () => log("ERROR stream rejected"),
-        received: (message) => {
+        received: async (message) => {
+          const decoded = message.z ? await decompress(message.z) : message
           for (const handler of sub.handlers) {
-            handler.handleMessage(message)
+            handler.handleMessage(decoded)
           }
         }
       }

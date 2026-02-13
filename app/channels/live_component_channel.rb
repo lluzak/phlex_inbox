@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class LiveComponentChannel < ApplicationCable::Channel
+  mattr_accessor :compress, default: false
+
   def subscribed
     stream_name = verified_stream_name
     if stream_name
@@ -24,10 +26,17 @@ class LiveComponentChannel < ApplicationCable::Channel
 
   class << self
     def broadcast_data(streamables, action:, data:)
-      # Sign then verify to get the same unsigned stream name that stream_from uses
       signed = Turbo::StreamsChannel.signed_stream_name(streamables)
       stream_name = Turbo::StreamsChannel.verified_stream_name(signed)
-      ActionCable.server.broadcast(stream_name, { action: action, data: data })
+
+      payload = { action: action, data: data }
+
+      if compress
+        json = ActiveSupport::JSON.encode(payload)
+        ActionCable.server.broadcast(stream_name, { z: Base64.strict_encode64(ActiveSupport::Gzip.compress(json)) })
+      else
+        ActionCable.server.broadcast(stream_name, payload)
+      end
     end
   end
 end

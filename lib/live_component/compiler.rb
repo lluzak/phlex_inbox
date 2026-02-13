@@ -5,6 +5,7 @@ require "prism"
 require "ruby2js"
 require "ruby2js/filter/erb"
 require "ruby2js/filter/functions"
+require_relative "erb_extractor"
 
 module LiveComponent
   module Compiler
@@ -14,37 +15,66 @@ module LiveComponent
       }
     JS
 
+    TAG_FN_JS = <<~JS.freeze
+      function _tag(name, content, attrs) {
+        let html = '<' + name;
+        if (attrs) {
+          for (let [k, v] of Object.entries(attrs)) {
+            if (v != null && v !== false) html += ' ' + k + '="' + _escape(String(v)) + '"';
+          }
+        }
+        return html + '>' + _escape(String(content)) + '</' + name + '>';
+      }
+    JS
+
     module_function
 
     def compile(component_class)
       erb_source = read_erb(component_class)
+      erb_ruby = ERB.new(erb_source).src
 
-      # Pre-process: strip raw() calls and track which fields are raw
-      raw_fields = Set.new
-      cleaned_erb = erb_source.gsub(/<%=\s*raw\s+@(\w+)\s*%>/) do
-        raw_fields << $1
-        "<%= @#{$1} %>"
-      end
+      extraction = { expressions: {}, raw_fields: Set.new }
 
-      erb_ruby = ERB.new(cleaned_erb).src
-      fields = extract_fields(erb_ruby)
-      js_function = Ruby2JS.convert(erb_ruby, filters: [ :erb, :functions ], eslevel: 2022).to_s
+      js_function = Ruby2JS.convert(
+        erb_ruby,
+        filters: [:erb, :functions, LiveComponent::ErbExtractor],
+        eslevel: 2022,
+        extraction: extraction
+      ).to_s
+
+      expressions = extraction[:expressions] || {}
+      raw_fields = extraction[:raw_fields] || Set.new
+      collection_computed = extraction[:collection_computed] || {}
+
+      # Simple @ivars not consumed by extraction become JS params directly
+      all_ivars = extract_ivar_names(erb_ruby)
+      consumed_ivars = expressions.values
+        .flat_map { |src| src.scan(/@(\w+)/).flatten }.to_set
+      simple_ivars = (all_ivars - consumed_ivars).to_a.sort
+
+      fields = (expressions.keys + simple_ivars).uniq.sort
       js_body = unwrap_function(js_function, fields, raw_fields)
 
-      { js_body: js_body, fields: fields }
+      {
+        js_body: js_body,
+        fields: fields,
+        expressions: expressions,
+        simple_ivars: simple_ivars,
+        collection_computed: collection_computed
+      }
     end
 
     def compile_js(component_class)
       compile(component_class)[:js_body]
     end
 
-    def extract_fields(erb_ruby)
+    def extract_ivar_names(erb_ruby)
       result = Prism.parse(erb_ruby)
       ivars = Set.new
       walk(result.value) do |node|
         ivars << node.name.to_s.delete_prefix("@") if node.is_a?(Prism::InstanceVariableReadNode)
       end
-      ivars.to_a.sort
+      ivars
     end
 
     def read_erb(component_class)
@@ -66,7 +96,7 @@ module LiveComponent
       destructure = "let { #{fields.join(", ")} } = data;\n"
       escaped_body = add_html_escaping(body, raw_fields)
 
-      "#{ESCAPE_FN_JS}#{destructure}#{escaped_body}"
+      "#{ESCAPE_FN_JS}#{TAG_FN_JS}#{destructure}#{escaped_body}"
     end
 
     def add_html_escaping(body, raw_fields)
