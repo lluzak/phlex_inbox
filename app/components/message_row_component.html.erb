@@ -1,0 +1,32 @@
+<a href="<%= @message_path %>" class="<%= @row_classes %>" data-turbo-frame="message_detail">
+  <div class="flex items-start gap-3 p-3">
+    <% if @sender_avatar_url %>
+      <img src="<%= @sender_avatar_url %>" alt="<%= @sender_name %>" class="w-8 h-8 text-xs rounded-full object-cover">
+    <% else %>
+      <div class="w-8 h-8 text-xs <%= @sender_color %> rounded-full flex items-center justify-center text-white font-medium"><%= @sender_initials %></div>
+    <% end %>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0">
+          <% unless @read %>
+            <span class="inline-block w-2 h-2 bg-blue-600 rounded-full shrink-0"></span>
+          <% end %>
+          <span class="<%= @sender_name_classes %>"><%= @sender_name %></span>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" class="p-0.5" data-controller="star" data-star-url-value="<%= @toggle_star_path %>" data-action="click->star#toggle">
+            <%= raw @star_icon %>
+          </button>
+          <span class="text-xs text-gray-500"><%= @time_ago %></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 min-w-0">
+        <p class="<%= @subject_classes %>"><%= @subject %></p>
+        <% @labels.each do |label| %>
+          <span class="<%= label.badge_classes %>"><%= label.name %></span>
+        <% end %>
+      </div>
+      <p class="text-sm text-gray-500 truncate"><%= @preview %></p>
+    </div>
+  </div>
+</a>

@@ -4,8 +4,6 @@ source "https://rubygems.org"
 gem "rails", "~> 8.1.2"
 # ViewComponent [https://viewcomponent.org]
 gem "view_component", "~> 3.21"
-# Ruby to JavaScript transpiler [https://www.ruby2js.com]
-gem "ruby2js", "~> 5.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use sqlite3 as the database for Active Record
@@ -20,6 +18,8 @@ gem "turbo-rails"
 gem "stimulus-rails"
 # Use Tailwind CSS [https://github.com/rails/tailwindcss-rails]
 gem "tailwindcss-rails"
+# Compile Ruby to JavaScript for ERB→JS template compilation [https://github.com/ruby2js/ruby2js]
+gem "ruby2js", github: "ruby2js/ruby2js"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"

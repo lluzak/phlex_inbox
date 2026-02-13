@@ -10,13 +10,9 @@ class MessageListComponent < ApplicationComponent
 
   private
 
-  def live_list_data_attrs
-    attrs = {}
-    return attrs unless @current_contact
+  def signed_stream_name
+    return unless @current_contact
 
-    stream = Turbo::StreamsChannel.signed_stream_name([@current_contact, :messages])
-    attrs[:controller] = "live-list"
-    attrs[:live_list_stream_value] = stream
-    attrs
+    Turbo::StreamsChannel.signed_stream_name([ @current_contact, :messages ])
   end
 end

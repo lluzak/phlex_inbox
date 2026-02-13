@@ -1,3 +1,11 @@
+GIT
+  remote: https://github.com/ruby2js/ruby2js.git
+  revision: e355249f6a2480c7f4812db21dea37531a875c9d
+  specs:
+    ruby2js (5.1.2)
+      parser
+      regexp_parser (~> 2.9)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -254,7 +262,7 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
-    regexp_parser (2.1.1)
+    regexp_parser (2.11.3)
     reline (0.6.3)
       io-console (~> 0.5)
     rexml (3.4.4)
@@ -290,9 +298,6 @@ GEM
       rubocop-performance
       rubocop-rails
     ruby-progressbar (1.13.0)
-    ruby2js (5.1.2)
-      parser
-      regexp_parser (~> 2.1.1)
     rubyzip (3.2.2)
     securerandom (0.4.1)
     selenium-webdriver (4.40.0)
@@ -399,7 +404,7 @@ DEPENDENCIES
   puma (>= 5.0)
   rails (~> 8.1.2)
   rubocop-rails-omakase
-  ruby2js (~> 5.1)
+  ruby2js!
   selenium-webdriver
   solid_cable
   solid_cache

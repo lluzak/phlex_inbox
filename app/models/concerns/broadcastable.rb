@@ -30,23 +30,24 @@ module Broadcastable
     broadcast_configs.each do |config|
       next unless config[:prepend_target]
 
-      if compiled_template_for?(config)
-        broadcast_data_create(config)
-      else
-        html = render_broadcast_component(config)
-        Turbo::StreamsChannel.broadcast_prepend_to(
-          *Array(resolve_stream(config[:stream])),
-          target: config[:prepend_target],
-          html: html
-        )
-      end
+      html = render_wrapped_component(config)
+      Turbo::StreamsChannel.broadcast_prepend_to(
+        *Array(resolve_stream(config[:stream])),
+        target: config[:prepend_target],
+        html: html
+      )
     end
   end
 
   def broadcast_live_update
     broadcast_configs.each do |config|
-      if compiled_template_for?(config)
-        broadcast_data_update(config)
+      if config[:component_class].respond_to?(:build_data)
+        data = config[:component_class].build_data(self)
+        LiveComponentChannel.broadcast_data(
+          resolve_stream(config[:stream]),
+          action: :update,
+          data: data
+        )
       else
         html = render_broadcast_component(config)
         Turbo::StreamsChannel.broadcast_replace_to(
@@ -60,8 +61,13 @@ module Broadcastable
 
   def broadcast_live_destroy
     broadcast_configs.each do |config|
-      if compiled_template_for?(config)
-        broadcast_data_destroy(config)
+      if config[:component_class].respond_to?(:build_data)
+        data = { "id" => id, "dom_id" => ActionView::RecordIdentifier.dom_id(self) }
+        LiveComponentChannel.broadcast_data(
+          resolve_stream(config[:stream]),
+          action: :destroy,
+          data: data
+        )
       else
         Turbo::StreamsChannel.broadcast_remove_to(
           *Array(resolve_stream(config[:stream])),
@@ -71,32 +77,6 @@ module Broadcastable
     end
   end
 
-  def broadcast_data_create(config)
-    serializer = config[:component_class].data_serializer
-    data = serializer.serialize(self)
-    stream = Array(resolve_stream(config[:stream]))
-
-    LiveComponentChannel.broadcast_data(stream, action: "create", data: data)
-  end
-
-  def broadcast_data_update(config)
-    serializer = config[:component_class].data_serializer
-    data = serializer.serialize_changes(self) || serializer.serialize(self)
-    stream = Array(resolve_stream(config[:stream]))
-
-    LiveComponentChannel.broadcast_data(stream, action: "update", data: data)
-  end
-
-  def broadcast_data_destroy(config)
-    stream = Array(resolve_stream(config[:stream]))
-    LiveComponentChannel.broadcast_data(stream, action: "destroy", data: { "id" => id })
-  end
-
-  def compiled_template_for?(config)
-    config[:component_class].respond_to?(:compiled_template_js) &&
-      config[:component_class].compiled_template_js
-  end
-
   def resolve_stream(stream)
     stream.is_a?(Proc) ? stream.call(self) : stream
   end
@@ -104,5 +84,20 @@ module Broadcastable
   def render_broadcast_component(config)
     component = config[:component].call(self)
     ApplicationController.render(component, layout: false)
+  end
+
+  def render_wrapped_component(config)
+    inner_html = render_broadcast_component(config)
+    dom_id_val = ActionView::RecordIdentifier.dom_id(self)
+
+    if config[:component_class].respond_to?(:template_element_id)
+      stream = resolve_stream(config[:stream])
+      signed = Turbo::StreamsChannel.signed_stream_name(stream)
+      template_id = config[:component_class].template_element_id
+
+      %(<div id="#{dom_id_val}" data-controller="live-renderer" data-live-renderer-template-id-value="#{template_id}" data-live-renderer-stream-value="#{signed}">#{inner_html}</div>)
+    else
+      %(<div id="#{dom_id_val}">#{inner_html}</div>)
+    end
   end
 end

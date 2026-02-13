@@ -7,9 +7,15 @@
   </header>
 
   <% if @messages.any? %>
-    <div id="message_items" <%= tag.attributes(live_list_data_attrs) %>>
+    <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
+    <div id="message_items">
       <% @messages.each do |message| %>
-        <%= render MessageRowComponent.new(message: message, selected: message.id == @selected_id) %>
+        <div id="<%= dom_id(message) %>"
+             data-controller="live-renderer"
+             data-live-renderer-template-id-value="<%= MessageRowComponent.template_element_id %>"
+             <% if signed_stream_name %>data-live-renderer-stream-value="<%= signed_stream_name %>"<% end %>>
+          <%= render MessageRowComponent.new(message: message, selected: message.id == @selected_id) %>
+        </div>
       <% end %>
     </div>
   <% else %>

@@ -14,19 +14,19 @@
     </aside>
 
     <div class="w-96 border-r border-gray-200 overflow-y-auto bg-white shrink-0">
-      <%= turbo_frame_tag "message_list" do %>
+      <turbo-frame id="message_list">
         <%= render @message_list %>
-      <% end %>
+      </turbo-frame>
     </div>
 
     <main class="flex-1 overflow-y-auto bg-white">
-      <%= turbo_frame_tag "message_detail" do %>
+      <turbo-frame id="message_detail">
         <% if @message_detail %>
           <%= render @message_detail %>
         <% else %>
           <%= render EmptyStateComponent.new(title: "Select a message", description: "Choose a message from the list to read it.") %>
         <% end %>
-      <% end %>
+      </turbo-frame>
     </main>
   </div>
 </div>
