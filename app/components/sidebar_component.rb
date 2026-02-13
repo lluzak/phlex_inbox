@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-class Components::Sidebar < Components::Base
-  include Phlex::Rails::Helpers::LinkTo
-
+class SidebarComponent < ApplicationComponent
   FOLDERS = [
     {
       key: :inbox,
@@ -50,58 +48,14 @@ class Components::Sidebar < Components::Base
     @current_contact = current_contact
   end
 
-  def view_template
-    nav(class: "p-4 space-y-1") do
-      render Button.new(
-        variant: :primary,
-        class: "w-full justify-center mb-4",
-        data: { action: "click->compose#open" }
-      ) do
-        plain "Compose"
-      end
-
-      FOLDERS.each do |folder|
-        render_folder_link(folder)
-      end
-    end
-  end
-
   private
 
-  def render_folder_link(folder)
-    active = @current_folder.to_s == folder[:key].to_s
-    count = unread_count_for(folder[:scope])
-
-    link_to(
-      folder_path(folder[:key]),
-      class: folder_link_classes(active),
-      data: { turbo_frame: "message_list" }
-    ) do
-      div(class: "flex items-center justify-between w-full") do
-        div(class: "flex items-center") do
-          render_folder_icon(folder[:icon], active)
-          span(class: "ml-3") { folder[:label] }
-        end
-
-        render Badge.new(count: count) if count.positive?
-      end
-    end
-  end
-
-  def render_folder_icon(icon_path, active)
-    svg(
-      xmlns: "http://www.w3.org/2000/svg",
-      fill: "none",
-      viewbox: "0 0 24 24",
-      stroke_width: "1.5",
-      stroke: "currentColor",
-      class: "w-5 h-5 #{active ? 'text-blue-600' : 'text-gray-400'}"
-    ) do |s|
-      s.path(
-        stroke_linecap: "round",
-        stroke_linejoin: "round",
-        d: icon_path
-      )
+  def folder_path(key)
+    case key
+    when :inbox then helpers.root_path
+    when :sent then helpers.sent_messages_path
+    when :archive then helpers.archive_messages_path
+    when :trash then helpers.trash_messages_path
     end
   end
 
@@ -111,15 +65,6 @@ class Components::Sidebar < Components::Base
       "#{base} bg-blue-50 text-blue-700"
     else
       "#{base} text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-    end
-  end
-
-  def folder_path(key)
-    case key
-    when :inbox then helpers.root_path
-    when :sent then helpers.sent_messages_path
-    when :archive then helpers.archive_messages_path
-    when :trash then helpers.trash_messages_path
     end
   end
 

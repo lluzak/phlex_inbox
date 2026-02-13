@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Components::LabelBadge < Components::Base
+class LabelBadgeComponent < ApplicationComponent
   COLORS = {
     "blue" => "bg-blue-100 text-blue-700",
     "green" => "bg-green-100 text-green-700",
@@ -12,10 +12,6 @@ class Components::LabelBadge < Components::Base
 
   def initialize(label:)
     @label = label
-  end
-
-  def view_template
-    span(class: badge_classes) { @label.name }
   end
 
   private

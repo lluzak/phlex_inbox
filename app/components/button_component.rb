@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Components::Button < Components::Base
+class ButtonComponent < ApplicationComponent
   VARIANTS = {
     primary:
       "inline-flex items-center px-4 py-2 border border-transparent text-sm " \
@@ -21,11 +21,11 @@ class Components::Button < Components::Base
     @attrs = attrs
   end
 
-  def view_template(&block)
+  def call
     base_class = VARIANTS.fetch(@variant)
     extra_class = @attrs.delete(:class)
     merged_class = [base_class, extra_class].compact.join(" ")
 
-    button(class: merged_class, **@attrs, &block)
+    content_tag(:button, content, class: merged_class, **@attrs)
   end
 end

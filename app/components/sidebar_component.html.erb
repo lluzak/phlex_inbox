@@ -1,0 +1,23 @@
+<nav class="p-4 space-y-1">
+  <%= render ButtonComponent.new(variant: :primary, class: "w-full justify-center mb-4", data: { action: "click->compose#open" }) do %>
+    Compose
+  <% end %>
+
+  <% FOLDERS.each do |folder| %>
+    <% active = @current_folder.to_s == folder[:key].to_s %>
+    <% count = unread_count_for(folder[:scope]) %>
+    <%= link_to folder_path(folder[:key]), class: folder_link_classes(active), data: { turbo_frame: "message_list" } do %>
+      <div class="flex items-center justify-between w-full">
+        <div class="flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 <%= active ? 'text-blue-600' : 'text-gray-400' %>">
+            <path stroke-linecap="round" stroke-linejoin="round" d="<%= folder[:icon] %>" />
+          </svg>
+          <span class="ml-3"><%= folder[:label] %></span>
+        </div>
+        <% if count.positive? %>
+          <%= render BadgeComponent.new(count: count) %>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</nav>

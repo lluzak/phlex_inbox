@@ -1,0 +1,7 @@
+<%= render InboxLayoutComponent.new(
+  sidebar: SidebarComponent.new(current_folder: @folder, current_contact: current_contact),
+  message_list: MessageListComponent.new(messages: @messages, folder: @folder, current_contact: current_contact),
+  current_contact: current_contact
+) %>
+
+<%= render ComposeModalComponent.new(contacts: @contacts) %>

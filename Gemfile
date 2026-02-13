@@ -2,8 +2,10 @@ source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.1.2"
-# Phlex view components [https://www.phlex.fun]
-gem "phlex-rails", "~> 2.1"
+# ViewComponent [https://viewcomponent.org]
+gem "view_component", "~> 3.21"
+# Ruby to JavaScript transpiler [https://www.ruby2js.com]
+gem "ruby2js", "~> 5.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use sqlite3 as the database for Active Record

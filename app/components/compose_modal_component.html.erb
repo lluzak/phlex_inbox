@@ -1,0 +1,58 @@
+<div data-controller="compose" data-compose-open-class="flex" data-compose-closed-class="hidden" class="hidden">
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 z-40" data-action="click->compose#close"></div>
+
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">
+          <%= @reply_to ? "Reply" : "New Message" %>
+        </h3>
+        <%= render ButtonComponent.new(variant: :icon, data: { action: "click->compose#close" }) do %>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        <% end %>
+      </div>
+
+      <%= form_with url: messages_path, class: "p-6 space-y-4" do |f| %>
+        <% if @reply_to %>
+          <%= f.hidden_field :replied_to_id, value: @reply_to.id %>
+          <%= f.hidden_field :recipient_id, value: @reply_to.sender_id %>
+          <div class="text-sm text-gray-600">
+            To: <%= @reply_to.sender.name %>
+          </div>
+        <% else %>
+          <div>
+            <%= f.label :recipient_id, "To", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.select :recipient_id,
+              @contacts.map { |c| [c.name, c.id] },
+              { prompt: "Select recipient..." },
+              class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6" %>
+          </div>
+        <% end %>
+
+        <div>
+          <%= f.label :subject, "Subject", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= f.text_field :subject,
+            value: @reply_to ? "Re: #{@reply_to.subject}" : "",
+            class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6" %>
+        </div>
+
+        <div>
+          <%= f.label :body, "Message", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= f.text_area :body,
+            rows: 6,
+            class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6" %>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <%= render ButtonComponent.new(variant: :ghost, type: "button", data: { action: "click->compose#close" }) do %>
+            Cancel
+          <% end %>
+          <%= f.submit "Send",
+            class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

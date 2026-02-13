@@ -155,6 +155,7 @@ GEM
       net-smtp
     marcel (1.1.0)
     matrix (0.4.3)
+    method_source (1.1.0)
     mini_mime (1.1.5)
     minitest (6.0.1)
       prism (~> 1.5)
@@ -193,13 +194,6 @@ GEM
     parser (3.3.10.1)
       ast (~> 2.4.1)
       racc
-    phlex (2.4.1)
-      refract (~> 1.0)
-      zeitwerk (~> 2.7)
-    phlex-rails (2.4.0)
-      phlex (~> 2.4.0)
-      railties (>= 7.1, < 9)
-      zeitwerk (~> 2.7)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -260,42 +254,45 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
-    refract (1.1.0)
-      prism
-      zeitwerk
-    regexp_parser (2.11.3)
+    regexp_parser (2.1.1)
     reline (0.6.3)
       io-console (~> 0.5)
     rexml (3.4.4)
-    rubocop (1.84.1)
+    rubocop (1.64.1)
       json (~> 2.3)
-      language_server-protocol (~> 3.17.0.2)
-      lint_roller (~> 1.1.0)
+      language_server-protocol (>= 3.17.0)
       parallel (~> 1.10)
       parser (>= 3.3.0.2)
       rainbow (>= 2.2.2, < 4.0)
-      regexp_parser (>= 2.9.3, < 3.0)
-      rubocop-ast (>= 1.49.0, < 2.0)
+      regexp_parser (>= 1.8, < 3.0)
+      rexml (>= 3.2.5, < 4.0)
+      rubocop-ast (>= 1.31.1, < 2.0)
       ruby-progressbar (~> 1.7)
-      unicode-display_width (>= 2.4.0, < 4.0)
+      unicode-display_width (>= 2.4.0, < 3.0)
     rubocop-ast (1.49.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
-    rubocop-performance (1.26.1)
+    rubocop-minitest (0.37.0)
       lint_roller (~> 1.1)
-      rubocop (>= 1.75.0, < 2.0)
-      rubocop-ast (>= 1.47.1, < 2.0)
-    rubocop-rails (2.34.3)
+      rubocop (>= 1.61, < 2.0)
+      rubocop-ast (>= 1.38.0, < 2.0)
+    rubocop-performance (1.23.1)
+      rubocop (>= 1.48.1, < 2.0)
+      rubocop-ast (>= 1.31.1, < 2.0)
+    rubocop-rails (2.29.1)
       activesupport (>= 4.2.0)
-      lint_roller (~> 1.1)
       rack (>= 1.1)
-      rubocop (>= 1.75.0, < 2.0)
-      rubocop-ast (>= 1.44.0, < 2.0)
-    rubocop-rails-omakase (1.1.0)
-      rubocop (>= 1.72)
-      rubocop-performance (>= 1.24)
-      rubocop-rails (>= 2.30)
+      rubocop (>= 1.52.0, < 2.0)
+      rubocop-ast (>= 1.31.1, < 2.0)
+    rubocop-rails-omakase (1.0.0)
+      rubocop
+      rubocop-minitest
+      rubocop-performance
+      rubocop-rails
     ruby-progressbar (1.13.0)
+    ruby2js (5.1.2)
+      parser
+      regexp_parser (~> 2.1.1)
     rubyzip (3.2.2)
     securerandom (0.4.1)
     selenium-webdriver (4.40.0)
@@ -358,11 +355,13 @@ GEM
       railties (>= 7.1.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    unicode-display_width (3.2.0)
-      unicode-emoji (~> 4.1)
-    unicode-emoji (4.2.0)
+    unicode-display_width (2.6.0)
     uri (1.1.1)
     useragent (0.16.11)
+    view_component (3.24.0)
+      activesupport (>= 5.2.0, < 8.2)
+      concurrent-ruby (~> 1)
+      method_source (~> 1.0)
     web-console (4.2.1)
       actionview (>= 6.0.0)
       activemodel (>= 6.0.0)
@@ -396,11 +395,11 @@ DEPENDENCIES
   debug
   importmap-rails
   kamal
-  phlex-rails (~> 2.1)
   propshaft
   puma (>= 5.0)
   rails (~> 8.1.2)
   rubocop-rails-omakase
+  ruby2js (~> 5.1)
   selenium-webdriver
   solid_cable
   solid_cache
@@ -411,6 +410,7 @@ DEPENDENCIES
   thruster
   turbo-rails
   tzinfo-data
+  view_component (~> 3.21)
   web-console
 
 BUNDLED WITH

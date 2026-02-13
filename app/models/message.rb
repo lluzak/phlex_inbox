@@ -3,9 +3,9 @@ class Message < ApplicationRecord
 
   LABELS = %w[inbox sent archive trash].freeze
 
-  broadcasts_component Components::MessageRow,
+  broadcasts_component MessageRowComponent,
     stream: ->(message) { [message.recipient, :messages] },
-    component: ->(message) { Components::MessageRow.new(message: message) },
+    component: ->(message) { MessageRowComponent.new(message: message) },
     prepend_target: "message_items"
 
   belongs_to :sender, class_name: "Contact"
@@ -26,6 +26,8 @@ class Message < ApplicationRecord
   scope :unread, -> { where(read_at: nil) }
   scope :starred_messages, -> { where(starred: true) }
   scope :newest_first, -> { order(created_at: :desc) }
+
+  delegate :name, :avatar_url, to: :sender, prefix: :sender
 
   def read?
     read_at.present?

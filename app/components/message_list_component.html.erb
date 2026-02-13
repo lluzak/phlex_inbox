@@ -1,0 +1,18 @@
+<div>
+  <header class="px-4 py-3 border-b border-gray-200">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-900 capitalize"><%= @folder %></h2>
+      <span class="text-sm text-gray-500"><%= @messages.size %> messages</span>
+    </div>
+  </header>
+
+  <% if @messages.any? %>
+    <div id="message_items" <%= tag.attributes(live_list_data_attrs) %>>
+      <% @messages.each do |message| %>
+        <%= render MessageRowComponent.new(message: message, selected: message.id == @selected_id) %>
+      <% end %>
+    </div>
+  <% else %>
+    <%= render EmptyStateComponent.new(title: "No messages", description: "This folder is empty.") %>
+  <% end %>
+</div>

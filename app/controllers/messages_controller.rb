@@ -1,37 +1,36 @@
 # frozen_string_literal: true
 
 class MessagesController < ApplicationController
-  layout -> { Views::Layouts::ApplicationLayout }
-
   before_action :set_message, only: [:show, :toggle_star, :toggle_read, :move]
 
   def index
     @folder = "inbox"
     @messages = current_contact.received_messages.inbox.includes(:labels).newest_first
-    render_message_list_or_full(@messages, @folder)
+    render_message_list_or_full
   end
 
   def sent
     @folder = "sent"
     @messages = current_contact.sent_messages.sent_box.includes(:labels).newest_first
-    render_message_list_or_full(@messages, @folder)
+    render_message_list_or_full
   end
 
   def archive
     @folder = "archive"
     @messages = current_contact.received_messages.archived.includes(:labels).newest_first
-    render_message_list_or_full(@messages, @folder)
+    render_message_list_or_full
   end
 
   def trash
     @folder = "trash"
     @messages = current_contact.received_messages.trashed.includes(:labels).newest_first
-    render_message_list_or_full(@messages, @folder)
+    render_message_list_or_full
   end
 
   def show
     @message.mark_as_read!
-    render Views::Messages::Show.new(message: @message), layout: false
+    @message = @message
+    render :show, layout: false
   end
 
   def create
@@ -64,7 +63,7 @@ class MessagesController < ApplicationController
     end
     @folder = query.present? ? "search" : "inbox"
 
-    render_message_list_or_full(@messages, @folder)
+    render_message_list_or_full
   end
 
   def toggle_star
@@ -73,7 +72,7 @@ class MessagesController < ApplicationController
       format.turbo_stream do
         render turbo_stream: turbo_stream.replace(
           @message,
-          Components::MessageRow.new(message: @message)
+          MessageRowComponent.new(message: @message)
         )
       end
       format.html { redirect_to root_path }
@@ -90,7 +89,7 @@ class MessagesController < ApplicationController
       format.turbo_stream do
         render turbo_stream: turbo_stream.replace(
           @message,
-          Components::MessageRow.new(message: @message)
+          MessageRowComponent.new(message: @message)
         )
       end
       format.html { redirect_to root_path }
@@ -113,11 +112,12 @@ class MessagesController < ApplicationController
     @message = Message.find(params[:id])
   end
 
-  def render_message_list_or_full(messages, folder)
+  def render_message_list_or_full
+    @contacts = Contact.where.not(id: current_contact.id).order(:name)
     if turbo_frame_request?
-      render Views::Messages::MessageListFrame.new(messages: messages, folder: folder), layout: false
+      render :message_list_frame, layout: false
     else
-      render Views::Messages::Index.new(messages: messages, folder: folder, current_contact: current_contact)
+      render :index
     end
   end
 end
