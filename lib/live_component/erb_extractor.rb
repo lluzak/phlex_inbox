@@ -168,6 +168,10 @@ module LiveComponent
     def process_tag_arg(node)
       return process(node) unless ast_node?(node)
 
+      if node.type == :array
+        return s(:array, *node.children.map { |child| process_tag_arg(child) })
+      end
+
       if ivar_chain?(node)
         key = record_extraction(node)
         return s(:lvar, key.to_sym)

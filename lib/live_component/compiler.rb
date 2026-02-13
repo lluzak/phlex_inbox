@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "erb"
 require "prism"
 require "ruby2js"
+require "ruby2js/erubi"
 require "ruby2js/filter/erb"
 require "ruby2js/filter/functions"
 require_relative "erb_extractor"
@@ -20,7 +20,9 @@ module LiveComponent
         let html = '<' + name;
         if (attrs) {
           for (let [k, v] of Object.entries(attrs)) {
-            if (v != null && v !== false) html += ' ' + k + '="' + _escape(String(v)) + '"';
+            if (v == null || v === false) continue;
+            if (Array.isArray(v)) v = v.filter(Boolean).join(' ');
+            html += ' ' + k + '="' + _escape(String(v)) + '"';
           }
         }
         return html + '>' + _escape(String(content)) + '</' + name + '>';
@@ -31,7 +33,7 @@ module LiveComponent
 
     def compile(component_class)
       erb_source = read_erb(component_class)
-      erb_ruby = ERB.new(erb_source).src
+      erb_ruby = Ruby2JS::Erubi.new(erb_source).src
 
       extraction = { expressions: {}, raw_fields: Set.new }
 
