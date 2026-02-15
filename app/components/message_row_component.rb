@@ -4,6 +4,9 @@ class MessageRowComponent < ApplicationComponent
   include LiveComponent
 
   subscribes_to :message
+  broadcasts stream: ->(message) { [message.recipient, :messages] },
+             prepend_target: "message_items"
+  live_action :toggle_star
 
   def initialize(message:, selected: false)
     @message = message
@@ -11,6 +14,10 @@ class MessageRowComponent < ApplicationComponent
   end
 
   private
+
+  def toggle_star
+    @message.toggle_starred!
+  end
 
   def avatar_color(sender)
     AvatarComponent::COLORS[sender.name.sum % AvatarComponent::COLORS.length]
