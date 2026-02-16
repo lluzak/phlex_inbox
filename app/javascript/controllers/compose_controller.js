@@ -2,26 +2,28 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static classes = ["open", "closed"]
-  static targets = ["subject", "body"]
+  static targets = ["modal", "subject", "body", "form"]
 
   open() {
-    this.element.classList.remove(...this.closedClasses)
-    this.element.classList.add(...this.openClasses)
+    this.#show()
   }
 
   close() {
-    this.element.classList.remove(...this.openClasses)
-    this.element.classList.add(...this.closedClasses)
+    this.#hide()
+    this.#resetForm()
   }
 
-  reply(event) {
-    const { subjectParam } = event.params
-    this.open()
-    if (this.hasSubjectTarget) {
-      this.subjectTarget.value = `Re: ${subjectParam}`
-    }
-    if (this.hasBodyTarget) {
-      this.bodyTarget.focus()
-    }
+  #show() {
+    this.modalTarget.classList.remove(...this.closedClasses)
+    this.modalTarget.classList.add(...this.openClasses)
+  }
+
+  #hide() {
+    this.modalTarget.classList.remove(...this.openClasses)
+    this.modalTarget.classList.add(...this.closedClasses)
+  }
+
+  #resetForm() {
+    this.formTarget.reset()
   }
 }

@@ -105,36 +105,24 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert_equal @message.id, payload["r"]
   end
 
-  # --- build_data: nested component rendering ---
+  # --- build_data: thread messages collection ---
 
-  test "build_data for MessageDetailComponent returns nested data for AvatarComponent" do
+  test "build_data for MessageDetailComponent includes thread messages collection" do
     data = MessageDetailComponent.build_data(@message)
-    nc_key = data.keys.find { |k| k.start_with?("_nc") && data[k].is_a?(Hash) }
-    assert_not_nil nc_key, "Expected nested component data in build_data"
-
-    nested = data[nc_key]
-    assert nested.is_a?(Hash), "Expected nested data to be a hash"
-    assert_not_empty nested, "Expected nested data to have values"
+    collection_entry = data.find { |_k, v| v.is_a?(Array) }
+    assert_not_nil collection_entry, "Expected a collection (array) for thread messages in build_data"
   end
 
-  test "build_data nested AvatarComponent data contains initials" do
+  test "build_data thread messages collection contains per-item computed fields" do
     data = MessageDetailComponent.build_data(@message)
-    nc_key = data.keys.find { |k| k.start_with?("_nc") && data[k].is_a?(Hash) }
-    nested = data[nc_key]
+    collection_entry = data.find { |_k, v| v.is_a?(Array) }
+    assert_not_nil collection_entry
 
-    initials_value = nested.values.find { |v| v.is_a?(String) && v == @sender.initials }
-    assert_not_nil initials_value, "Expected sender initials in nested component data"
-  end
-
-  test "compiled JS includes nested render function" do
-    js = MessageDetailComponent.compiled_template_js
-    assert_includes js, "function _render__nc0", "Expected _render__nc0 nested render function in compiled JS"
-  end
-
-  test "build_data no longer includes raw HTML for AvatarComponent" do
-    data = MessageDetailComponent.build_data(@message)
-    html_values = data.select { |k, v| v.is_a?(String) && v.include?("rounded-full") && !k.start_with?("_nc") }
-    assert_empty html_values, "Expected no raw AvatarComponent HTML in parent data, got: #{html_values.keys}"
+    _key, items = collection_entry
+    assert_equal 1, items.size, "Expected one message in the thread"
+    item = items.first
+    assert item.is_a?(Hash), "Expected each thread message item to be a hash"
+    assert_not_empty item, "Expected per-item computed fields"
   end
 
   test "build_data for MessageDetailComponent has no raw button HTML blob" do

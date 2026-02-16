@@ -10,16 +10,36 @@ module LiveComponent
     include Rails.application.routes.url_helpers
 
     def initialize(model_attr, record, component_class: nil, **kwargs)
-      instance_variable_set(:"@#{model_attr}", record)
+      instance_variable_set(:"@#{model_attr}", record) if model_attr
       kwargs.each { |k, v| instance_variable_set(:"@#{k}", v) }
-      @component_delegate = component_class&.allocate
+
+      if component_class
+        begin
+          constructor_args = model_attr ? { model_attr => record }.merge(kwargs) : kwargs
+          instance = component_class.new(**constructor_args)
+          @component_delegate = instance
+          instance.instance_variables.each do |ivar|
+            next if (model_attr && ivar == :"@#{model_attr}") || instance_variable_defined?(ivar)
+            instance_variable_set(ivar, instance.instance_variable_get(ivar))
+          end
+        rescue
+          @component_delegate = component_class.allocate
+        end
+      end
     end
 
     def evaluate(ruby_source)
       instance_eval(ruby_source)
+    rescue NameError
+      @component_delegate&.instance_eval(ruby_source) rescue nil
     rescue => e
       Rails.logger.error "[LiveComponent::DataEvaluator] Error evaluating '#{ruby_source}': #{e.message}"
       nil
+    end
+
+    def render(renderable, &block)
+      view_context = ApplicationController.new.view_context
+      renderable.render_in(view_context, &block)
     end
 
     def evaluate_collection(ruby_source, computed)

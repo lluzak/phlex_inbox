@@ -68,7 +68,9 @@ export default class extends Controller {
   static values = {
     template: String,
     templateId: String,
-    stream: String
+    stream: String,
+    actionUrl: String,
+    actionToken: String
   }
 
   connect() {
@@ -78,8 +80,10 @@ export default class extends Controller {
     this.renderFn = encoded ? compileTemplate(encoded) : null
 
     if (!this.renderFn) {
-      log("ERROR no render function, skipping")
-      return
+      if (this.hasTemplateValue || this.hasTemplateIdValue) {
+        log("ERROR no render function, skipping")
+      }
+      if (!this.streamValue) return
     }
     log("template compiled")
 
@@ -114,7 +118,7 @@ export default class extends Controller {
     const { action, data } = message
 
     if (action === "update" && data.dom_id === this.element.id) {
-      this.render(data)
+      if (this.renderFn) this.render(data)
     } else if (action === "destroy" && data.dom_id === this.element.id) {
       log("removing element", this.element.id)
       this.element.remove()
@@ -126,6 +130,50 @@ export default class extends Controller {
     const newHtml = this.renderFn(data)
     this.morph(newHtml)
     log("morphed", this.element.id)
+  }
+
+  performAction(event) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const actionName = event.params.action
+    if (!actionName || !this.hasActionUrlValue || !this.hasActionTokenValue) return
+
+    const body = new URLSearchParams({
+      token: this.actionTokenValue,
+      action_name: actionName
+    })
+
+    const stimulusParams = { ...event.params }
+    delete stimulusParams.action
+    const redirect = stimulusParams.redirect
+    delete stimulusParams.redirect
+    for (const [key, value] of Object.entries(stimulusParams)) {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+      body.append(`params[${snakeKey}]`, value)
+    }
+
+    if (event.type === "submit") {
+      for (const [key, value] of new FormData(event.target).entries()) {
+        body.append(`params[${key}]`, value)
+      }
+    }
+
+    fetch(this.actionUrlValue, {
+      method: "POST",
+      headers: {
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+      },
+      body
+    }).then(response => {
+      if (redirect && response.ok) {
+        Turbo.visit(redirect)
+      } else if (response.ok && response.headers.get("content-type")?.includes("text/html")) {
+        return response.text()
+      }
+    }).then(html => {
+      if (html) this.morph(html)
+    })
   }
 
   morph(newHtml) {

@@ -37,16 +37,26 @@ module LiveComponent
 
       extraction = { expressions: {}, raw_fields: Set.new }
 
+      nestable_checker = lambda do |class_name|
+        klass = class_name.safe_constantize
+        return nil unless klass
+        return nil unless klass.respond_to?(:compiled_data)
+        return nil if klass.respond_to?(:_live_model_attr) && klass._live_model_attr
+        begin; read_erb(klass); klass; rescue; nil; end
+      end
+
       js_function = Ruby2JS.convert(
         erb_ruby,
         filters: [:erb, :functions, LiveComponent::ErbExtractor],
         eslevel: 2022,
-        extraction: extraction
+        extraction: extraction,
+        nestable_checker: nestable_checker
       ).to_s
 
       expressions = extraction[:expressions] || {}
       raw_fields = extraction[:raw_fields] || Set.new
       collection_computed = extraction[:collection_computed] || {}
+      nested_components = extraction[:nested_components] || {}
 
       # Simple @ivars not consumed by extraction become JS params directly
       all_ivars = extract_ivar_names(erb_ruby)
@@ -54,15 +64,37 @@ module LiveComponent
         .flat_map { |src| src.scan(/@(\w+)/).flatten }.to_set
       simple_ivars = (all_ivars - consumed_ivars).to_a.sort
 
-      fields = (expressions.keys + simple_ivars).uniq.sort
-      js_body = unwrap_function(js_function, fields, raw_fields)
+      # Compile nested component templates and embed as JS functions
+      nested_functions_js = ""
+      nested_components.each do |key, info|
+        child_class = info[:class_name].constantize
+        child_compiled = compile(child_class)
+        child_body = unwrap_function(
+          child_compiled[:raw_js_function],
+          child_compiled[:fields],
+          child_compiled[:raw_fields],
+          include_helpers: false
+        )
+        nested_functions_js += "function _render_#{key}(data) {\n"
+        nested_functions_js += child_body.gsub(/^/, "  ") + "\n"
+        nested_functions_js += "}\n"
+      end
+
+      fields = (expressions.keys + simple_ivars + nested_components.keys).uniq.sort
+      parent_raw_body = strip_function_wrapper(js_function)
+      js_body = "#{ESCAPE_FN_JS}#{TAG_FN_JS}#{nested_functions_js}"
+      js_body += "let { #{fields.join(", ")} } = data;\n"
+      js_body += add_html_escaping(parent_raw_body, raw_fields)
 
       {
         js_body: js_body,
         fields: fields,
         expressions: expressions,
         simple_ivars: simple_ivars,
-        collection_computed: collection_computed
+        collection_computed: collection_computed,
+        nested_components: nested_components,
+        raw_js_function: js_function,
+        raw_fields: raw_fields
       }
     end
 
@@ -89,16 +121,19 @@ module LiveComponent
       File.read(erb_path)
     end
 
-    def unwrap_function(js_function, fields, raw_fields)
-      body = js_function
-               .sub(/\Afunction render\(\{[^}]*\}\) \{\n?/, "")
-               .sub(/\}\s*\z/, "")
-               .gsub(/^  /, "")
+    def strip_function_wrapper(js_function)
+      js_function
+        .sub(/\Afunction render\(\{[^}]*\}\) \{\n?/, "")
+        .sub(/\}\s*\z/, "")
+        .gsub(/^  /, "")
+    end
 
+    def unwrap_function(js_function, fields, raw_fields, include_helpers: true)
+      body = strip_function_wrapper(js_function)
       destructure = "let { #{fields.join(", ")} } = data;\n"
       escaped_body = add_html_escaping(body, raw_fields)
-
-      "#{ESCAPE_FN_JS}#{TAG_FN_JS}#{destructure}#{escaped_body}"
+      helpers = include_helpers ? "#{ESCAPE_FN_JS}#{TAG_FN_JS}" : ""
+      "#{helpers}#{destructure}#{escaped_body}"
     end
 
     def add_html_escaping(body, raw_fields)

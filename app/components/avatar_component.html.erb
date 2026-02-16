@@ -1,7 +1,7 @@
 <% if @contact.respond_to?(:avatar_url) && @contact.avatar_url.present? %>
   <%= image_tag @contact.avatar_url, alt: @contact.name, class: "#{SIZES[@size]} rounded-full object-cover" %>
 <% else %>
-  <div class="<%= "#{SIZES[@size]} #{color_for(@contact.name)} rounded-full flex items-center justify-center text-white font-medium" %>">
+  <div class="<%= "#{SIZES[@size]} #{@contact.avatar_color} rounded-full flex items-center justify-center text-white font-medium" %>">
     <%= @contact.initials %>
   </div>
 <% end %>

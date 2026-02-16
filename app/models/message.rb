@@ -9,8 +9,11 @@ class Message < ApplicationRecord
   belongs_to :recipient, class_name: "Contact"
   belongs_to :replied_to, class_name: "Message", optional: true
   has_many :replies, class_name: "Message", foreign_key: :replied_to_id, dependent: :nullify, inverse_of: :replied_to
+
   has_many :labelings, dependent: :destroy
   has_many :labels, through: :labelings
+
+  after_create_commit :touch_replied_to
 
   validates :subject, presence: true
   validates :body, presence: true
@@ -40,5 +43,32 @@ class Message < ApplicationRecord
 
   def preview(length = 100)
     body.truncate(length)
+  end
+
+  def thread_root
+    root = self
+    seen = Set.new
+    while root.replied_to_id.present? && root.replied_to_id != root.id && seen.add?(root.id)
+      root = root.replied_to
+    end
+    root
+  end
+
+  def thread_messages
+    root = thread_root
+    ids = Set.new([root.id])
+    loop do
+      new_ids = Message.where(replied_to_id: ids.to_a).where.not(id: ids.to_a).pluck(:id)
+      break if new_ids.empty?
+
+      ids.merge(new_ids)
+    end
+    Message.where(id: ids.to_a).includes(:sender, :recipient).order(:created_at)
+  end
+
+  private
+
+  def touch_replied_to
+    replied_to&.touch
   end
 end

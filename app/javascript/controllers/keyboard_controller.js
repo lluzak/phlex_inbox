@@ -36,7 +36,7 @@ export default class extends Controller {
         break
       case "s":
         if (current) {
-          const starBtn = current.querySelector("[data-controller='star']")
+          const starBtn = current.querySelector("[data-live-renderer-action-param='toggle_star']")
           if (starBtn) starBtn.click()
         }
         break

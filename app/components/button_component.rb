@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ButtonComponent < ApplicationComponent
+  include LiveComponent
+
   VARIANTS = {
     primary:
       "inline-flex items-center px-4 py-2 border border-transparent text-sm " \

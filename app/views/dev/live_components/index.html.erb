@@ -1,0 +1,56 @@
+<div class="max-w-7xl mx-auto px-4 py-8">
+  <h1 class="text-2xl font-bold mb-6">LiveComponent Developer Preview</h1>
+
+  <% @components.each do |component| %>
+    <div class="mb-10 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+      <div class="bg-gray-800 text-white px-4 py-3 font-semibold text-sm">
+        <%= component[:name] %>
+      </div>
+
+      <% if component[:error] %>
+        <div class="grid grid-cols-2 divide-x divide-gray-200">
+          <div class="bg-gray-50 p-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase mb-2">ERB Source</h3>
+            <pre class="text-xs font-mono whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(component[:erb_source]) %></code></pre>
+          </div>
+
+          <div class="bg-red-50 p-4">
+            <h3 class="text-xs font-semibold text-red-500 uppercase mb-2">Compilation Error</h3>
+            <pre class="text-xs font-mono text-red-700 whitespace-pre-wrap"><code><%= ERB::Util.html_escape(component[:error]) %></code></pre>
+            <h3 class="text-xs font-semibold text-red-500 uppercase mt-4 mb-2">Backtrace</h3>
+            <pre class="text-xs font-mono text-red-600 whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto"><code><%= ERB::Util.html_escape(component[:backtrace].join("\n")) %></code></pre>
+          </div>
+        </div>
+      <% else %>
+        <div class="grid grid-cols-2 divide-x divide-gray-200">
+          <div class="bg-gray-50 p-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase mb-2">ERB Source</h3>
+            <pre class="text-xs font-mono whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(component[:erb_source]) %></code></pre>
+          </div>
+
+          <div class="bg-gray-900 p-4">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2">Compiled JS</h3>
+            <pre class="text-xs font-mono text-green-400 whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(component[:js_body]) %></code></pre>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 divide-x divide-gray-200 border-t border-gray-200">
+          <div class="p-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase mb-2">Expressions</h3>
+            <pre class="text-xs font-mono whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(JSON.pretty_generate(component[:expressions])) %></code></pre>
+          </div>
+
+          <div class="p-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase mb-2">Simple Ivars</h3>
+            <pre class="text-xs font-mono whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(JSON.pretty_generate(component[:simple_ivars])) %></code></pre>
+          </div>
+
+          <div class="p-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase mb-2">Collection Computed</h3>
+            <pre class="text-xs font-mono whitespace-pre-wrap overflow-x-auto"><code><%= ERB::Util.html_escape(JSON.pretty_generate(component[:collection_computed])) %></code></pre>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

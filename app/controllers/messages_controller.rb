@@ -29,8 +29,14 @@ class MessagesController < ApplicationController
 
   def show
     @message.mark_as_read!
-    @message = @message
-    render :show, layout: false
+    if turbo_frame_request?
+      render :show, layout: false
+    else
+      @folder = "inbox"
+      @messages = current_contact.received_messages.inbox.includes(:labels).newest_first
+      @contacts = Contact.where.not(id: current_contact.id).order(:name)
+      render :index
+    end
   end
 
   def create
@@ -45,7 +51,11 @@ class MessagesController < ApplicationController
     )
 
     if @message.save
-      redirect_to root_path, notice: "Message sent!"
+      if @message.replied_to_id.present?
+        redirect_to message_path(@message.replied_to_id), notice: "Reply sent!"
+      else
+        redirect_to root_path, notice: "Message sent!"
+      end
     else
       redirect_to root_path, alert: "Failed to send message."
     end
@@ -68,15 +78,7 @@ class MessagesController < ApplicationController
 
   def toggle_star
     @message.toggle_starred!
-    respond_to do |format|
-      format.turbo_stream do
-        render turbo_stream: turbo_stream.replace(
-          @message,
-          MessageRowComponent.new(message: @message)
-        )
-      end
-      format.html { redirect_to root_path }
-    end
+    head :no_content
   end
 
   def toggle_read
@@ -85,15 +87,7 @@ class MessagesController < ApplicationController
     else
       @message.mark_as_read!
     end
-    respond_to do |format|
-      format.turbo_stream do
-        render turbo_stream: turbo_stream.replace(
-          @message,
-          MessageRowComponent.new(message: @message)
-        )
-      end
-      format.html { redirect_to root_path }
-    end
+    head :no_content
   end
 
   def move

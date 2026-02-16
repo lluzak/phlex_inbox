@@ -21,8 +21,12 @@
 
     <main class="flex-1 overflow-y-auto bg-white">
       <turbo-frame id="message_detail">
-        <% if @message_detail %>
-          <%= render @message_detail %>
+        <% if @message %>
+          <div data-controller="live-renderer"
+               data-live-renderer-action-url-value="<%= helpers.live_component_actions_path %>"
+               data-live-renderer-action-token-value="<%= MessageDetailComponent.live_action_token(@message) %>">
+            <%= render MessageDetailComponent.new(message: @message) %>
+          </div>
         <% else %>
           <%= render EmptyStateComponent.new(title: "Select a message", description: "Choose a message from the list to read it.") %>
         <% end %>

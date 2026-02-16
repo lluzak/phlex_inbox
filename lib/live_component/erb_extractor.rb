@@ -18,6 +18,8 @@ module LiveComponent
     def set_options(options)
       super
       @extraction_output = @options[:extraction]
+      @nestable_checker = @options[:nestable_checker]
+      @nested_counter = 0
     end
 
     # Intercept .each blocks to track block variable context.
@@ -27,7 +29,25 @@ module LiveComponent
     # handler chain (ERB -> Functions) runs, so process_erb_send_append
     # sees the block context when processing the body.
     def process(node)
-      return super unless node.respond_to?(:type) && node.type == :block
+      return super unless node.respond_to?(:type)
+
+      # Pre-extract server-evaluable send nodes before other filters can
+      # transform them. The Functions filter processes certain patterns
+      # (e.g. respond_to? → "in" operator) in its own process method,
+      # bypassing on_send where ErbExtractor normally does extraction.
+      if @erb_bufvar && node.type == :send && server_evaluable?(node) && !contains_lvar?(node)
+        unless in_block_context? && contains_block_var?(node)
+          if in_block_context? && current_block_context[:collection_source] == rebuild_source(node) && current_block_context[:collection_key].nil?
+            key = record_collection_extraction(node)
+            current_block_context[:collection_key] = key
+          else
+            key = record_extraction(node)
+          end
+          return s(:lvar, key.to_sym)
+        end
+      end
+
+      return super unless node.type == :block
 
       call, args = node.children
       return super unless call.type == :send
@@ -38,7 +58,7 @@ module LiveComponent
       block_var = args.children.first&.children&.first
       return super unless block_var
 
-      collection_source = ivar_chain?(target) ? rebuild_source(target) : nil
+      collection_source = server_evaluable?(target) ? rebuild_source(target) : nil
 
       @block_context_stack.push(
         var: block_var,
@@ -46,14 +66,34 @@ module LiveComponent
         collection_source: collection_source,
         collection_key: nil
       )
-      result = super
+
+      # For bare ivar targets (e.g., @labels.each), the Functions filter
+      # converts the block to for...of without dispatching to on_send/on_ivar,
+      # so the collection is never extracted. Pre-extract the ivar here and
+      # rewrite the block node so the JS references the extracted variable.
+      if target.type == :ivar && collection_source
+        key = record_collection_extraction(target)
+        current_block_context[:collection_key] = key
+        new_call = s(:send, s(:lvar, key.to_sym), :each)
+        node = s(:block, new_call, args, node.children[2])
+      end
+
+      result = super(node)
       context = @block_context_stack.pop
       flush_block_computed(context) if context[:collection_key]
       result
     end
 
     # Hook called by ERB filter for expressions inside <%= %> tags.
+    # Despite the name, the node may be a :const (bare constant access).
     def process_erb_send_append(send_node)
+      # Bare constant access (e.g., LabelBadgeComponent::COLORS)
+      if send_node.respond_to?(:type) && send_node.type == :const
+        key = record_extraction(send_node)
+        return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
+          s(:send, nil, :String, s(:lvar, key.to_sym)))
+      end
+
       target, method, *args = send_node.children
 
       # raw(expr) -- extract inner expression, mark as raw
@@ -71,22 +111,23 @@ module LiveComponent
         return process_tag_builder_append(send_node)
       end
 
-      # @ivar.chain (e.g., @message.sender.name)
-      if ivar_chain?(send_node)
-        key = record_extraction(send_node)
-        return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
-                 s(:send, nil, :String, s(:lvar, key.to_sym)))
-      end
-
-      # bare_helper(@args) where args reference ivars (e.g., message_path(@message))
-      if target.nil? && contains_ivar?(send_node)
-        key = record_extraction(send_node)
-        return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
-                 s(:send, nil, :String, s(:lvar, key.to_sym)))
+      # Nestable component: compile to JS function instead of server-rendering HTML
+      if @nestable_checker && render_component_call?(send_node)
+        new_call = send_node.children[2]
+        const_node = new_call.children[0]
+        class_name = rebuild_source(const_node)
+        klass = @nestable_checker.call(class_name)
+        if klass
+          key = record_nested_component(send_node, class_name)
+          return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
+            s(:send, nil, :"_render_#{key}", s(:lvar, key.to_sym)))
+        end
       end
 
       # Inside a .each block: expressions referencing the block variable
-      # become per-item computed fields
+      # become per-item computed fields. Must be checked before ivar_chain?
+      # because expressions like @message.labels.include?(label) have an
+      # ivar chain receiver but depend on the block variable.
       if in_block_context? && contains_block_var?(send_node)
         raw = html_producing?(send_node)
         key = record_block_computed(send_node, raw: raw)
@@ -96,7 +137,7 @@ module LiveComponent
           return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+, prop)
         else
           return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
-                   s(:send, nil, :String, prop))
+            s(:send, nil, :String, prop))
         end
       end
 
@@ -109,20 +150,37 @@ module LiveComponent
           return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+, s(:lvar, key.to_sym))
         else
           return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
-                   s(:send, nil, :String, s(:lvar, key.to_sym)))
+            s(:send, nil, :String, s(:lvar, key.to_sym)))
         end
       end
 
       defined?(super) ? super : nil
     end
 
-    # Catches ivar chains in non-output context (if/unless conditions, ternaries).
+    # Hook called by ERB filter for block expressions inside <%= expr do %>...<% end %>.
+    # Handles render(Component.new(...)) { block } by extracting as raw server-evaluated HTML.
+    def process_erb_block_append(block_node)
+      call_node, _args, body = block_node.children
+
+      if render_component_call?(call_node)
+        block_html = extract_block_html(body)
+        call_source = rebuild_source(call_node)
+        full_source = block_html ?
+          "#{call_source} { #{block_html.inspect}.html_safe }" :
+          call_source
+        key = record_extraction(nil, raw: true, source_override: full_source)
+        return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+, s(:lvar, key.to_sym))
+      end
+
+      defined?(super) ? super : nil
+    end
+
+    # Catches server-evaluable expressions in non-output context
+    # (if/unless conditions, ternaries, collection targets).
     def on_send(node)
       return super unless @erb_bufvar
 
-      target, method, *args = node.children
-
-      if ivar_chain?(node)
+      if server_evaluable?(node) && !contains_lvar?(node)
         source = rebuild_source(node)
 
         # Collection being iterated: assign a unique key per loop
@@ -137,6 +195,15 @@ module LiveComponent
       end
 
       super
+    end
+
+    # Catches bare constant access in non-output context
+    # (e.g., if SomeConstant::VALUE in conditions).
+    def on_const(node)
+      return super unless @erb_bufvar
+
+      key = record_extraction(node)
+      s(:lvar, key.to_sym)
     end
 
     private
@@ -202,6 +269,53 @@ module LiveComponent
       s(:hash, *pairs)
     end
 
+    # --- Render component detection ---
+
+    # Detects render(SomeConst.new(...)) pattern
+    def render_component_call?(node)
+      return false unless node&.type == :send
+      target, method, *args = node.children
+      return false unless target.nil? && method == :render && args.length == 1
+      arg = args.first
+      arg&.type == :send && arg.children[1] == :new
+    end
+
+    # Walks Erubi-processed block body to extract static HTML strings
+    # from buffer append operations (_buf << "html" or _buf += "html")
+    def extract_block_html(body)
+      return nil unless body
+      strings = []
+      collect_buffer_strings(body, strings)
+      strings.empty? ? nil : strings.join
+    end
+
+    def collect_buffer_strings(node, strings)
+      return unless ast_node?(node)
+      case node.type
+      when :begin
+        node.children.each { |child| collect_buffer_strings(child, strings) }
+      when :op_asgn, :send
+        node.children.each do |child|
+          next unless ast_node?(child)
+          collect_str_content(child, strings)
+        end
+      end
+    end
+
+    def collect_str_content(node, strings)
+      case node.type
+      when :str
+        strings << node.children[0]
+      when :dstr
+        node.children.each { |c| strings << c.children[0] if ast_node?(c) && c.type == :str }
+      when :send
+        # handle .freeze wrapper: str("...").freeze or dstr(...).freeze
+        if node.children[1] == :freeze && ast_node?(node.children[0])
+          collect_str_content(node.children[0], strings)
+        end
+      end
+    end
+
     # --- Key generation ---
 
     def next_key
@@ -256,6 +370,34 @@ module LiveComponent
       }
     end
 
+    # --- Nested component recording ---
+
+    def record_nested_component(send_node, class_name)
+      key = "_nc#{@nested_counter}"
+      @nested_counter += 1
+
+      new_call = send_node.children[2] # Component.new(...)
+      hash_node = new_call.children[2] # kwargs hash
+
+      kwargs = {}
+      if hash_node && ast_node?(hash_node) && hash_node.type == :hash
+        hash_node.children.each do |pair|
+          next unless ast_node?(pair) && pair.type == :pair
+          kwarg_name = pair.children[0].children[0].to_s
+          kwarg_source = rebuild_source(pair.children[1])
+          kwargs[kwarg_name] = kwarg_source
+        end
+      end
+
+      @extraction_output[:nested_components] ||= {}
+      @extraction_output[:nested_components][key] = {
+        class_name: class_name,
+        kwargs: kwargs
+      }
+
+      key
+    end
+
     # --- AST inspection helpers ---
 
     def ivar_chain?(node)
@@ -276,9 +418,27 @@ module LiveComponent
       parts.join("_")
     end
 
+    def const_chain?(node)
+      return false unless node && ast_node?(node)
+      return true if node.type == :const
+      return false unless node.type == :send
+      target = node.children[0]
+      target && (const_chain?(target) || ivar_chain?(target))
+    end
+
+    # An expression that can't run in JS and must be server-evaluated.
+    # Covers ivar chains, const chains, and bare helpers referencing ivars.
+    def server_evaluable?(node)
+      return false unless node && ast_node?(node)
+      return false if lvar_only?(node)
+      ivar_chain?(node) || const_chain?(node) ||
+        (node.type == :send && node.children[0].nil? && !pure_lvar_args?(node))
+    end
+
     def extractable?(node)
       return false unless ast_node?(node)
-      ivar_chain?(node) || (node.type == :send && node.children[0].nil? && contains_ivar?(node))
+      ivar_chain?(node) || const_chain?(node) ||
+        (node.type == :send && node.children[0].nil? && contains_ivar?(node))
     end
 
     def contains_ivar?(node)
@@ -287,10 +447,32 @@ module LiveComponent
       node.children.any? { |child| ast_node?(child) && contains_ivar?(child) }
     end
 
+    def contains_const?(node)
+      return false unless ast_node?(node)
+      return true if node.type == :const
+      node.children.any? { |child| ast_node?(child) && contains_const?(child) }
+    end
+
     def contains_lvar?(node)
       return false unless ast_node?(node)
       return true if node.type == :lvar
       node.children.any? { |child| ast_node?(child) && contains_lvar?(child) }
+    end
+
+    # Returns true if the node is purely lvar-based (no ivars, no consts)
+    def lvar_only?(node)
+      return false unless node && ast_node?(node)
+      return true if node.type == :lvar
+      return false if node.type == :ivar || node.type == :const
+      return false unless node.type == :send
+      !contains_ivar?(node) && !contains_const?(node)
+    end
+
+    # Returns true if a bare method call's arguments only reference lvars/literals
+    def pure_lvar_args?(node)
+      return true unless node.type == :send
+      _target, _method, *args = node.children
+      args.none? { |arg| ast_node?(arg) && (contains_ivar?(arg) || contains_const?(arg)) }
     end
 
     def lvar_chain?(node)
@@ -300,7 +482,7 @@ module LiveComponent
       node.children[0] && lvar_chain?(node.children[0])
     end
 
-    HTML_PRODUCING_METHODS = %i[content_tag link_to button_to image_tag].to_set.freeze
+    HTML_PRODUCING_METHODS = %i[content_tag link_to button_to image_tag render].to_set.freeze
 
     def html_producing?(node)
       return false unless node.type == :send
@@ -311,7 +493,7 @@ module LiveComponent
     end
 
     def tag_builder?(node)
-      node&.type == :send && node.children == [nil, :tag]
+      node&.type == :send && node.children == [ nil, :tag ]
     end
 
     # --- Source reconstruction ---
@@ -321,6 +503,9 @@ module LiveComponent
       case node.type
       when :ivar then node.children[0].to_s
       when :lvar then node.children[0].to_s
+      when :const
+        parent, name = node.children
+        parent ? "#{rebuild_source(parent)}::#{name}" : name.to_s
       when :str then node.children[0].inspect
       when :int, :float then node.children[0].to_s
       when :true then "true"
@@ -331,10 +516,12 @@ module LiveComponent
         node.children.map { |pair| rebuild_source(pair) }.join(", ")
       when :pair
         key, value = node.children
+        val_str = rebuild_source(value)
+        val_str = "{ #{val_str} }" if ast_node?(value) && value.type == :hash
         if key.type == :sym
-          "#{key.children[0]}: #{rebuild_source(value)}"
+          "#{key.children[0]}: #{val_str}"
         else
-          "#{rebuild_source(key)} => #{rebuild_source(value)}"
+          "#{rebuild_source(key)} => #{val_str}"
         end
       when :send
         target, method, *args = node.children
@@ -353,8 +540,8 @@ module LiveComponent
     # --- Extraction recording ---
 
     # Scalar: same source reuses same key.
-    def record_extraction(node, raw: false)
-      source = rebuild_source(node)
+    def record_extraction(node, raw: false, source_override: nil)
+      source = source_override || rebuild_source(node)
 
       if @source_to_key.key?(source)
         key = @source_to_key[source]

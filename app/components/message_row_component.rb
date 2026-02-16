@@ -20,7 +20,7 @@ class MessageRowComponent < ApplicationComponent
   end
 
   def avatar_color(sender)
-    AvatarComponent::COLORS[sender.name.sum % AvatarComponent::COLORS.length]
+    sender.avatar_color
   end
 
   def label_color_classes(label)
