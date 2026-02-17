@@ -1,7 +1,7 @@
 <div data-controller="compose" data-compose-open-class="flex" data-compose-closed-class="hidden">
   <%= render InboxLayoutComponent.new(
     sidebar: SidebarComponent.new(current_folder: @folder, current_contact: current_contact),
-    message_list: MessageListComponent.new(messages: @messages, folder: @folder, current_contact: current_contact, selected_id: @message&.id),
+    message_list: MessageListComponent.new(messages: @messages, folder: @folder, current_contact: current_contact, selected_id: @message&.id, active_filters: @active_filters || {}),
     message: @message,
     current_contact: current_contact
   ) %>

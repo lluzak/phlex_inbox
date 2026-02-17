@@ -6,6 +6,12 @@
     </div>
   </header>
 
+  <%= render FilterChipsComponent.new(
+    current_path: current_folder_path,
+    active_filters: @active_filters,
+    labels: Label.all
+  ) %>
+
   <% if @messages.any? %>
     <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
     <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white" >

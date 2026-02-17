@@ -1,3 +1,3 @@
 <%= turbo_frame_tag "message_list" do %>
-  <%= render MessageListComponent.new(messages: @messages, folder: @folder) %>
+  <%= render MessageListComponent.new(messages: @messages, folder: @folder, active_filters: @active_filters || {}) %>
 <% end %>
