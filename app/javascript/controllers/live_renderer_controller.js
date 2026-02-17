@@ -70,11 +70,16 @@ export default class extends Controller {
     templateId: String,
     stream: String,
     actionUrl: String,
-    actionToken: String
+    actionToken: String,
+    state: { type: Object, default: {} },
+    data: { type: Object, default: {} }
   }
 
   connect() {
     log("connect", this.element.id)
+
+    this.clientState = { ...this.stateValue }
+    this.lastServerData = Object.keys(this.dataValue).length > 0 ? this.dataValue : null
 
     const encoded = this.resolveTemplate()
     this.renderFn = encoded ? compileTemplate(encoded) : null
@@ -118,7 +123,8 @@ export default class extends Controller {
     const { action, data } = message
 
     if (action === "update" && data.dom_id === this.element.id) {
-      if (this.renderFn) this.render(data)
+      this.lastServerData = data
+      if (this.renderFn) this.render({ ...data, ...this.clientState })
     } else if (action === "destroy" && data.dom_id === this.element.id) {
       log("removing element", this.element.id)
       this.element.remove()
@@ -174,6 +180,19 @@ export default class extends Controller {
     }).then(html => {
       if (html) this.morph(html)
     })
+  }
+
+  setState(event) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const updates = { ...event.params }
+    delete updates.action
+    Object.assign(this.clientState, updates)
+
+    if (this.lastServerData && this.renderFn) {
+      this.render({ ...this.lastServerData, ...this.clientState })
+    }
   }
 
   morph(newHtml) {
