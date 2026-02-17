@@ -183,16 +183,42 @@ export default class extends Controller {
   }
 
   setState(event) {
-    event.preventDefault()
-    event.stopPropagation()
-
     const updates = { ...event.params }
     delete updates.action
+
+    // Clear the same keys on sibling live-renderer controllers within the same parent
+    if (updates.exclusive) {
+      delete updates.exclusive
+      this.#clearSiblingState(Object.keys(updates))
+    }
+
     Object.assign(this.clientState, updates)
 
     if (this.lastServerData && this.renderFn) {
       this.render({ ...this.lastServerData, ...this.clientState })
     }
+  }
+
+  #clearSiblingState(keys) {
+    const container = this.element.parentElement
+    if (!container) return
+
+    container.querySelectorAll(`:scope > [data-controller~="live-renderer"]`).forEach(el => {
+      if (el === this.element) return
+      const ctrl = this.application.getControllerForElementAndIdentifier(el, "live-renderer")
+      if (!ctrl?.clientState) return
+
+      let changed = false
+      for (const key of keys) {
+        if (ctrl.clientState[key]) {
+          ctrl.clientState[key] = false
+          changed = true
+        }
+      }
+      if (changed && ctrl.lastServerData && ctrl.renderFn) {
+        ctrl.render({ ...ctrl.lastServerData, ...ctrl.clientState })
+      }
+    })
   }
 
   morph(newHtml) {
