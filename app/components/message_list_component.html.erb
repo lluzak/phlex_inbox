@@ -8,7 +8,7 @@
 
   <% if @messages.any? %>
     <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
-    <div id="message_items">
+    <div id="message_items" data-controller="message-selection">
       <% @messages.each do |message| %>
         <div id="<%= dom_id(message) %>"
              data-controller="live-renderer"

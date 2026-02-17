@@ -1,4 +1,4 @@
-<a href="<%= message_path(@message) %>" class="block border-b border-gray-100 hover:bg-gray-50 transition-colors <%= @selected ? 'bg-blue-50' : 'bg-white' %>" data-turbo-frame="message_detail" data-turbo-action="advance" data-action="click->live-renderer#setState" data-live-renderer-selected-param="true" data-live-renderer-exclusive-param="true">
+<a href="<%= message_path(@message) %>" class="block border-b border-gray-100 hover:bg-gray-50 transition-colors <%= @selected ? 'bg-blue-50' : 'bg-white' %>" data-turbo-frame="message_detail" data-turbo-action="advance" data-action="click->message-selection#select">
   <div class="flex items-start gap-3 p-3">
     <% if @message.sender_avatar_url %>
       <img src="<%= @message.sender_avatar_url %>" alt="<%= @message.sender.name %>" class="w-8 h-8 text-xs rounded-full object-cover">
