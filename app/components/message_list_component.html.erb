@@ -8,9 +8,10 @@
 
   <% if @messages.any? %>
     <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
-    <div id="message_items" data-controller="message-selection">
+    <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50">
       <% @messages.each do |message| %>
         <div id="<%= dom_id(message) %>"
+             data-list-toggle-target="item"
              data-controller="live-renderer"
              data-live-renderer-template-id-value="<%= MessageRowComponent.template_element_id %>"
              <% if signed_stream_name %>data-live-renderer-stream-value="<%= signed_stream_name %>"<% end %>
