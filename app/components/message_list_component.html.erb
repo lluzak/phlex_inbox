@@ -15,7 +15,9 @@
              data-live-renderer-template-id-value="<%= MessageRowComponent.template_element_id %>"
              <% if signed_stream_name %>data-live-renderer-stream-value="<%= signed_stream_name %>"<% end %>
              data-live-renderer-action-url-value="<%= live_component_actions_path %>"
-             data-live-renderer-action-token-value="<%= MessageRowComponent.live_action_token(message) %>">
+             data-live-renderer-action-token-value="<%= MessageRowComponent.live_action_token(message) %>"
+             data-live-renderer-state-value="<%= client_state_for(message) %>"
+             data-live-renderer-data-value="<%= initial_data_for(message) %>">
           <%= render MessageRowComponent.new(message: message, selected: message.id == @selected_id) %>
         </div>
       <% end %>

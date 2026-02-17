@@ -15,4 +15,12 @@ class MessageListComponent < ApplicationComponent
 
     Turbo::StreamsChannel.signed_stream_name([ @current_contact, :messages ])
   end
+
+  def client_state_for(message)
+    MessageRowComponent.client_state_values(selected: message.id == @selected_id).to_json
+  end
+
+  def initial_data_for(message)
+    MessageRowComponent.build_data(message, selected: message.id == @selected_id).to_json
+  end
 end
