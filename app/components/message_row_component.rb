@@ -7,6 +7,7 @@ class MessageRowComponent < ApplicationComponent
   broadcasts stream: ->(message) { [message.recipient, :messages] },
              prepend_target: "message_items"
   live_action :toggle_star
+  client_state :selected, default: false
 
   def initialize(message:, selected: false)
     @message = message

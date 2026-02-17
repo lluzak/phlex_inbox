@@ -7,6 +7,7 @@ module LiveComponent
     class_attribute :_live_model_attr, instance_writer: false
     class_attribute :_live_actions, instance_writer: false, default: {}
     class_attribute :_broadcast_config, instance_writer: false
+    class_attribute :_client_state_fields, instance_writer: false, default: {}
   end
 
   def render_in(view_context, &block)
@@ -34,6 +35,18 @@ module LiveComponent
 
     def live_model_attr
       _live_model_attr
+    end
+
+    def client_state(name, default: nil)
+      self._client_state_fields = _client_state_fields.merge(
+        name.to_sym => { default: default }
+      )
+    end
+
+    def client_state_values(**kwargs)
+      _client_state_fields.each_with_object({}) do |(name, config), hash|
+        hash[name.to_s] = kwargs.key?(name) ? kwargs[name] : config[:default]
+      end
     end
 
     def live_action(action_name, params: [])

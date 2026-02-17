@@ -169,6 +169,26 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert_nil AvatarComponent._broadcast_config
   end
 
+  # --- client_state ---
+
+  test "client_state registers fields with defaults" do
+    assert_equal({ selected: { default: false } }, MessageRowComponent._client_state_fields)
+  end
+
+  test "component without client_state has empty client_state_fields" do
+    assert_equal({}, MessageLabelsComponent._client_state_fields)
+  end
+
+  test "client_state_values returns defaults when no kwargs override" do
+    values = MessageRowComponent.client_state_values
+    assert_equal({ "selected" => false }, values)
+  end
+
+  test "client_state_values returns overridden values from kwargs" do
+    values = MessageRowComponent.client_state_values(selected: true)
+    assert_equal({ "selected" => true }, values)
+  end
+
   # --- template_element_id ---
 
   test "template_element_id is derived from class name" do
