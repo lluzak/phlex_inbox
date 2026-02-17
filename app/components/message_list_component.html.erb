@@ -8,9 +8,10 @@
 
   <% if @messages.any? %>
     <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
-    <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50">
+    <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white">
       <% @messages.each do |message| %>
         <div id="<%= dom_id(message) %>"
+             class="<%= message.id == @selected_id ? 'bg-blue-50' : 'bg-white' %>"
              data-list-toggle-target="item"
              data-controller="live-renderer"
              data-live-renderer-template-id-value="<%= MessageRowComponent.template_element_id %>"
