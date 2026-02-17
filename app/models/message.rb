@@ -25,6 +25,7 @@ class Message < ApplicationRecord
   scope :trashed, -> { where(label: "trash") }
   scope :unread, -> { where(read_at: nil) }
   scope :starred_messages, -> { where(starred: true) }
+  scope :filter_by_label, ->(label_id) { joins(:labelings).where(labelings: { label_id: label_id }) }
   scope :newest_first, -> { order(created_at: :desc) }
 
   delegate :name, :avatar_url, to: :sender, prefix: :sender
