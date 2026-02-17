@@ -9,7 +9,7 @@
   <%= render FilterChipsComponent.new(
     current_path: current_folder_path,
     active_filters: @active_filters,
-    labels: Label.all
+    labels: @labels
   ) %>
 
   <% if @messages.any? %>

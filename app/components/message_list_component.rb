@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 class MessageListComponent < ApplicationComponent
-  def initialize(messages:, folder:, current_contact: nil, selected_id: nil, active_filters: {})
+  def initialize(messages:, folder:, current_contact: nil, selected_id: nil, active_filters: {}, labels: [])
     @messages = messages
     @folder = folder
     @current_contact = current_contact
     @selected_id = selected_id
     @active_filters = active_filters
+    @labels = labels
   end
 
   private

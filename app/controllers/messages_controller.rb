@@ -38,6 +38,8 @@ class MessagesController < ApplicationController
     else
       @folder = "inbox"
       @messages = current_contact.received_messages.inbox.includes(:labels).newest_first
+      @active_filters = {}
+      @labels = Label.all
       @contacts = Contact.where.not(id: current_contact.id).order(:name)
       render :index
     end
@@ -76,6 +78,8 @@ class MessagesController < ApplicationController
       current_contact.received_messages.inbox.includes(:labels).newest_first
     end
     @folder = query.present? ? "search" : "inbox"
+    @active_filters = {}
+    @labels = Label.all
 
     render_message_list_or_full
   end
@@ -111,6 +115,7 @@ class MessagesController < ApplicationController
     @messages = @messages.starred_messages if params[:starred] == "1"
     @messages = @messages.filter_by_label(params[:label_id]) if params[:label_id].present?
     @active_filters = params.slice(:unread, :starred, :label_id).permit(:unread, :starred, :label_id).to_h
+    @labels = Label.all
   end
 
   def set_message
