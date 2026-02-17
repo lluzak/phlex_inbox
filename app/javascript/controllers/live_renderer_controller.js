@@ -194,9 +194,13 @@ export default class extends Controller {
 
     Object.assign(this.clientState, updates)
 
-    if (this.lastServerData && this.renderFn) {
-      this.render({ ...this.lastServerData, ...this.clientState })
-    }
+    // Defer re-render so DOM morphing doesn't interfere with in-flight
+    // event handling (e.g., Turbo frame navigation from an <a> click)
+    requestAnimationFrame(() => {
+      if (this.lastServerData && this.renderFn) {
+        this.render({ ...this.lastServerData, ...this.clientState })
+      }
+    })
   }
 
   #clearSiblingState(keys) {
