@@ -189,10 +189,50 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert_equal({ "selected" => true }, values)
   end
 
+  # --- wrapper: client state & initial data ---
+
+  test "render_in embeds client state as data attribute" do
+    component = MessageRowComponent.new(message: @message, selected: true)
+    html = component.render_in(view_context_for_test)
+
+    assert_match(/data-live-renderer-state-value/, html)
+    # Should contain the initial client state JSON
+    state_match = html.match(/data-live-renderer-state-value="([^"]*)"/)
+    assert_not_nil state_match
+    state = JSON.parse(CGI.unescapeHTML(state_match[1]))
+    assert_equal true, state["selected"]
+  end
+
+  test "render_in embeds initial server data as data attribute" do
+    component = MessageRowComponent.new(message: @message, selected: false)
+    html = component.render_in(view_context_for_test)
+
+    assert_match(/data-live-renderer-data-value/, html)
+    data_match = html.match(/data-live-renderer-data-value="([^"]*)"/)
+    assert_not_nil data_match
+    data = JSON.parse(CGI.unescapeHTML(data_match[1]))
+    assert_equal "message_#{@message.id}", data["dom_id"]
+  end
+
+  test "render_in for component without client_state omits state attribute" do
+    component = MessageLabelsComponent.new(message: @message)
+    html = component.render_in(view_context_for_test)
+
+    assert_no_match(/data-live-renderer-state-value/, html)
+  end
+
   # --- template_element_id ---
 
   test "template_element_id is derived from class name" do
     assert_equal "message_labels_component_template", MessageLabelsComponent.template_element_id
     assert_equal "message_row_component_template", MessageRowComponent.template_element_id
+  end
+
+  private
+
+  def view_context_for_test
+    controller = ApplicationController.new
+    controller.request = ActionDispatch::TestRequest.create
+    controller.view_context
   end
 end

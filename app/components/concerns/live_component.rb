@@ -18,7 +18,17 @@ module LiveComponent
     return inner_html unless record
 
     stream = LiveComponent::Wrapper.find_stream_for(self.class, record)
-    LiveComponent::Wrapper.wrap(self.class, record, inner_html, stream: stream)
+
+    client_state = if self.class._client_state_fields.any?
+      kwargs = {}
+      self.class._client_state_fields.each_key do |name|
+        val = instance_variable_get(:"@#{name}")
+        kwargs[name] = val unless val.nil?
+      end
+      self.class.client_state_values(**kwargs)
+    end
+
+    LiveComponent::Wrapper.wrap(self.class, record, inner_html, stream: stream, client_state: client_state)
   end
 
   class_methods do

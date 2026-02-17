@@ -4,7 +4,7 @@ module LiveComponent
   module Wrapper
     module_function
 
-    def wrap(component_class, record, inner_html, stream: nil)
+    def wrap(component_class, record, inner_html, stream: nil, client_state: nil)
       dom_id_val = component_class.dom_id_for(record)
 
       attrs = [
@@ -21,6 +21,12 @@ module LiveComponent
       if component_class._live_actions.any?
         attrs << %(data-live-renderer-action-url-value="#{Rails.application.routes.url_helpers.live_component_actions_path}")
         attrs << %(data-live-renderer-action-token-value="#{component_class.live_action_token(record)}")
+      end
+
+      if client_state
+        attrs << %(data-live-renderer-state-value="#{ERB::Util.html_escape(client_state.to_json)}")
+        initial_data = component_class.build_data(record, **client_state.symbolize_keys)
+        attrs << %(data-live-renderer-data-value="#{ERB::Util.html_escape(initial_data.to_json)}")
       end
 
       %(<div #{attrs.join(" ")}>#{inner_html}</div>).html_safe
