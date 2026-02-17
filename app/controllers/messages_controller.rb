@@ -6,24 +6,28 @@ class MessagesController < ApplicationController
   def index
     @folder = "inbox"
     @messages = current_contact.received_messages.inbox.includes(:labels).newest_first
+    apply_filters
     render_message_list_or_full
   end
 
   def sent
     @folder = "sent"
     @messages = current_contact.sent_messages.sent_box.includes(:labels).newest_first
+    apply_filters
     render_message_list_or_full
   end
 
   def archive
     @folder = "archive"
     @messages = current_contact.received_messages.archived.includes(:labels).newest_first
+    apply_filters
     render_message_list_or_full
   end
 
   def trash
     @folder = "trash"
     @messages = current_contact.received_messages.trashed.includes(:labels).newest_first
+    apply_filters
     render_message_list_or_full
   end
 
@@ -101,6 +105,13 @@ class MessagesController < ApplicationController
   end
 
   private
+
+  def apply_filters
+    @messages = @messages.unread if params[:unread] == "1"
+    @messages = @messages.starred_messages if params[:starred] == "1"
+    @messages = @messages.filter_by_label(params[:label_id]) if params[:label_id].present?
+    @active_filters = params.slice(:unread, :starred, :label_id).permit(:unread, :starred, :label_id).to_h
+  end
 
   def set_message
     @message = Message.find(params[:id])
