@@ -185,6 +185,22 @@ export default class extends Controller {
   setState(event) {
     const updates = { ...event.params }
     delete updates.action
+
+    if (updates.exclusive) {
+      delete updates.exclusive
+      const container = this.element.parentElement
+      if (container) {
+        container.querySelectorAll(`:scope > [data-controller~="live-renderer"]`).forEach(el => {
+          if (el === this.element) return
+          const ctrl = this.application.getControllerForElementAndIdentifier(el, "live-renderer")
+          if (!ctrl?.clientState) return
+          for (const key of Object.keys(updates)) {
+            if (ctrl.clientState[key]) ctrl.clientState[key] = false
+          }
+        })
+      }
+    }
+
     Object.assign(this.clientState, updates)
   }
 
