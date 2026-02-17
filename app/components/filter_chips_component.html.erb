@@ -1,0 +1,15 @@
+<div class="flex flex-wrap gap-2 px-4 py-2 border-b border-gray-200">
+  <% STATUS_FILTERS.each do |filter| %>
+    <%= link_to filter[:label],
+        chip_url(filter[:key], "1"),
+        class: status_chip_classes(filter[:key]),
+        data: { turbo_frame: "message_list" } %>
+  <% end %>
+
+  <% @labels.each do |label| %>
+    <%= link_to label.name,
+        chip_url("label_id", label.id.to_s),
+        class: label_chip_classes(label),
+        data: { turbo_frame: "message_list" } %>
+  <% end %>
+</div>
