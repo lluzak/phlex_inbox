@@ -16,7 +16,31 @@ class LiveComponentChannel < ApplicationCable::Channel
     stop_all_streams
   end
 
+  def request_update(data)
+    component_class = data["component"].constantize
+    model_class = component_class.live_model_attr.to_s.classify.constantize
+    record = model_class.find_by(id: data["record_id"])
+    return unless record
+
+    if matches_filters?(record, data["params"] || {})
+      transmit({ "action" => "update", "data" => component_class.build_data(record) })
+    else
+      transmit({ "action" => "remove", "dom_id" => data["dom_id"] })
+    end
+  end
+
   private
+
+  def matches_filters?(record, params)
+    scope = record.class.where(id: record.id)
+    scope = scope.unread if params["unread"] == "1"
+    scope = scope.starred_messages if params["starred"] == "1"
+
+    label_ids = params["label_ids"]
+    scope = scope.filter_by_labels(label_ids) if label_ids.present?
+
+    scope.exists?
+  end
 
   def verified_stream_name
     Turbo::StreamsChannel.verified_stream_name(params[:signed_stream_name])
