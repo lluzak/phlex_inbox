@@ -2,7 +2,7 @@
   <header class="px-4 py-3 border-b border-gray-200">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-semibold text-gray-900 capitalize"><%= @folder %></h2>
-      <span class="text-sm text-gray-500"><%= @messages.size %> messages</span>
+      <span class="text-sm text-gray-500"><%= @messages.length %> messages</span>
     </div>
   </header>
 
@@ -14,7 +14,8 @@
 
   <% if @messages.any? %>
     <script type="text/x-template" id="<%= MessageRowComponent.template_element_id %>"><%= MessageRowComponent.encoded_template %></script>
-    <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white" >
+    <% strategy = @active_filters.any? ? "notify" : "push" %>
+    <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white">
       <% @messages.each do |message| %>
         <div id="<%= dom_id(message) %>"
              class="<%= message.id == @selected_id ? 'bg-blue-50' : 'bg-white' %>"
@@ -25,7 +26,10 @@
              data-live-renderer-action-url-value="<%= live_component_actions_path %>"
              data-live-renderer-action-token-value="<%= MessageRowComponent.live_action_token(message) %>"
              data-live-renderer-state-value="<%= client_state_for(message) %>"
-             data-live-renderer-data-value="<%= initial_data_for(message) %>">
+             data-live-renderer-data-value="<%= initial_data_for(message) %>"
+             data-live-renderer-strategy-value="<%= strategy %>"
+             data-live-renderer-component-value="MessageRowComponent"
+             data-live-renderer-params-value="<%= @active_filters.to_json %>">
           <%= render MessageRowComponent.new(message: message, selected: message.id == @selected_id) %>
         </div>
       <% end %>

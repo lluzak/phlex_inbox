@@ -125,7 +125,7 @@ export default class extends Controller {
   handleMessage(message) {
     const { action, data } = message
 
-    if (action === "update" && data.dom_id === this.element.id) {
+    if (action === "update" && data?.dom_id === this.element.id) {
       if (this.strategyValue === "notify" && !this._awaitingResponse) {
         this.requestUpdate(data)
         return
@@ -137,9 +137,9 @@ export default class extends Controller {
         bubbles: true,
         detail: { data }
       }))
-    } else if (action === "remove" && data.dom_id === this.element.id) {
+    } else if (action === "remove" && (message.dom_id || data?.dom_id) === this.element.id) {
       this.element.remove()
-    } else if (action === "destroy" && data.dom_id === this.element.id) {
+    } else if (action === "destroy" && data?.dom_id === this.element.id) {
       log("removing element", this.element.id)
       this.element.remove()
     }
