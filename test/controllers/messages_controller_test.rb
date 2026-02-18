@@ -39,16 +39,31 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(normal_msg)}']", count: 0
   end
 
-  test "index with label_id filters by label" do
+  test "index with label_ids filters by label" do
     label = Label.create!(name: "work", color: "blue")
     labeled_msg = Message.create!(subject: "Work", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
     labeled_msg.labels << label
     unlabeled_msg = Message.create!(subject: "Other", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
 
-    get root_path(label_id: label.id)
+    get root_path(label_ids: [label.id])
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(labeled_msg)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(unlabeled_msg)}']", count: 0
+  end
+
+  test "index with multiple label_ids uses AND logic" do
+    work = Label.create!(name: "work", color: "blue")
+    urgent = Label.create!(name: "urgent", color: "red")
+    both_msg = Message.create!(subject: "Both", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
+    both_msg.labels << work
+    both_msg.labels << urgent
+    only_work_msg = Message.create!(subject: "Work only", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
+    only_work_msg.labels << work
+
+    get root_path(label_ids: [work.id, urgent.id])
+    assert_response :success
+    assert_select "[id='#{ActionView::RecordIdentifier.dom_id(both_msg)}']"
+    assert_select "[id='#{ActionView::RecordIdentifier.dom_id(only_work_msg)}']", count: 0
   end
 
   test "sent with unread=1 applies filter" do

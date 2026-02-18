@@ -1,15 +1,21 @@
-<div class="flex flex-wrap gap-2 px-4 py-2 border-b border-gray-200">
+<div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200">
+  <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Status</span>
   <% STATUS_FILTERS.each do |filter| %>
     <%= link_to filter[:label],
-        chip_url(filter[:key], "1"),
+        chip_url_for_status(filter[:key], "1"),
         class: status_chip_classes(filter[:key]),
         data: { turbo_frame: "message_list" } %>
   <% end %>
 
-  <% @labels.each do |label| %>
-    <%= link_to label.name,
-        chip_url("label_id", label.id.to_s),
-        class: label_chip_classes(label),
-        data: { turbo_frame: "message_list" } %>
+  <% if @labels.any? %>
+    <span class="w-px h-5 bg-gray-300 mx-1"></span>
+    <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Labels</span>
+
+    <% @labels.each do |label| %>
+      <%= link_to label.name,
+          chip_url_for_label(label.id.to_s),
+          class: label_chip_classes(label),
+          data: { turbo_frame: "message_list" } %>
+    <% end %>
   <% end %>
 </div>

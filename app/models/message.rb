@@ -25,7 +25,12 @@ class Message < ApplicationRecord
   scope :trashed, -> { where(label: "trash") }
   scope :unread, -> { where(read_at: nil) }
   scope :starred_messages, -> { where(starred: true) }
-  scope :filter_by_label, ->(label_id) { joins(:labelings).where(labelings: { label_id: label_id }).distinct }
+  scope :filter_by_labels, ->(label_ids) {
+    joins(:labelings)
+      .where(labelings: { label_id: label_ids })
+      .group(:id)
+      .having("COUNT(DISTINCT labelings.label_id) = ?", label_ids.size)
+  }
   scope :newest_first, -> { order(created_at: :desc) }
 
   delegate :name, :avatar_url, to: :sender, prefix: :sender

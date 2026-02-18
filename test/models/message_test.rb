@@ -33,15 +33,31 @@ class MessageTest < ActiveSupport::TestCase
     assert_not_includes Message.sent_box, msg
   end
 
-  test "filter_by_label scope filters by label_id" do
+  test "filter_by_labels scope filters by single label_id" do
     msg = Message.create!(subject: "Hi", body: "Hello", sender: @sender, recipient: @recipient)
     label = Label.create!(name: "work", color: "blue")
     msg.labels << label
 
     unlabeled = Message.create!(subject: "Other", body: "World", sender: @sender, recipient: @recipient)
 
-    assert_includes Message.filter_by_label(label.id), msg
-    assert_not_includes Message.filter_by_label(label.id), unlabeled
+    assert_includes Message.filter_by_labels([label.id]), msg
+    assert_not_includes Message.filter_by_labels([label.id]), unlabeled
+  end
+
+  test "filter_by_labels with multiple labels uses AND logic" do
+    work = Label.create!(name: "work", color: "blue")
+    urgent = Label.create!(name: "urgent", color: "red")
+
+    both = Message.create!(subject: "Both", body: "Body", sender: @sender, recipient: @recipient)
+    both.labels << work
+    both.labels << urgent
+
+    only_work = Message.create!(subject: "Work", body: "Body", sender: @sender, recipient: @recipient)
+    only_work.labels << work
+
+    results = Message.filter_by_labels([work.id, urgent.id])
+    assert_includes results, both
+    assert_not_includes results, only_work
   end
 
   test "validates label inclusion" do

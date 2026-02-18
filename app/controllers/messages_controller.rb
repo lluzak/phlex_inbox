@@ -113,8 +113,10 @@ class MessagesController < ApplicationController
   def apply_filters
     @messages = @messages.unread if params[:unread] == "1"
     @messages = @messages.starred_messages if params[:starred] == "1"
-    @messages = @messages.filter_by_label(params[:label_id]) if params[:label_id].present?
-    @active_filters = params.slice(:unread, :starred, :label_id).permit(:unread, :starred, :label_id).to_h
+    label_ids = Array(params[:label_ids]).map(&:to_i).select(&:positive?)
+    @messages = @messages.filter_by_labels(label_ids) if label_ids.any?
+    @active_filters = params.slice(:unread, :starred).permit(:unread, :starred).to_h
+    @active_filters["label_ids"] = label_ids.map(&:to_s) if label_ids.any?
     @labels = Label.all
   end
 
