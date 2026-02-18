@@ -72,7 +72,10 @@ export default class extends Controller {
     actionUrl: String,
     actionToken: String,
     state: { type: Object, default: {} },
-    data: { type: Object, default: {} }
+    data: { type: Object, default: {} },
+    strategy: { type: String, default: "push" },
+    component: { type: String, default: "" },
+    params: { type: Object, default: {} }
   }
 
   connect() {
@@ -123,12 +126,36 @@ export default class extends Controller {
     const { action, data } = message
 
     if (action === "update" && data.dom_id === this.element.id) {
+      if (this.strategyValue === "notify" && !this._awaitingResponse) {
+        this.requestUpdate(data)
+        return
+      }
+      this._awaitingResponse = false
       this.lastServerData = data
       if (this.renderFn) this.render({ ...data, ...this.clientState })
+      this.element.dispatchEvent(new CustomEvent("live-renderer:updated", {
+        bubbles: true,
+        detail: { data }
+      }))
+    } else if (action === "remove" && data.dom_id === this.element.id) {
+      this.element.remove()
     } else if (action === "destroy" && data.dom_id === this.element.id) {
       log("removing element", this.element.id)
       this.element.remove()
     }
+  }
+
+  requestUpdate(data) {
+    const sub = findSubscription(this.streamValue)
+    if (!sub) return
+
+    this._awaitingResponse = true
+    sub.perform("request_update", {
+      dom_id: this.element.id,
+      component: this.componentValue,
+      record_id: data.id,
+      params: this.paramsValue
+    })
   }
 
   render(data) {
