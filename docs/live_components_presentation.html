@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiveComponent — Real-Time Rails Without Template Duplication</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --accent: #3b82f6;
+    --accent-dim: rgba(59, 130, 246, 0.15);
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --code-bg: #0d1117;
+    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    --sans: 'Inter', -apple-system, system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .deck {
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem 6rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .slide.active {
+    display: flex;
+    opacity: 1;
+  }
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 1.2rem;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 0.8rem;
+    color: var(--accent);
+  }
+
+  p, li {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  p + p { margin-top: 0.8rem; }
+
+  ul, ol { margin-left: 1.5rem; margin-top: 0.5rem; }
+  li { margin-bottom: 0.4rem; }
+  li strong { color: var(--text); }
+
+  .highlight { color: var(--accent); }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .amber { color: var(--amber); }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  code {
+    font-family: var(--mono);
+  }
+
+  pre code {
+    color: var(--text-dim);
+  }
+
+  .kw { color: #c792ea; }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cm { color: #546e7a; }
+  .sym { color: #f78c6c; }
+  .op { color: #89ddff; }
+  .num { color: #f78c6c; }
+  .tag { color: #f07178; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+  }
+
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .card h3 { margin-bottom: 0.5rem; }
+  .card p { font-size: 1.05rem; }
+
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-box {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .flow-box.accent {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .flow-arrow {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge.blue { background: var(--accent-dim); color: var(--accent); }
+  .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge.amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+
+  .subtitle {
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-bottom: 2rem;
+  }
+
+  .big-number {
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 1.05rem;
+  }
+
+  th {
+    text-align: left;
+    padding: 0.6rem 1rem;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  td {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: var(--text-dim);
+  }
+
+  td code {
+    background: var(--code-bg);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  .progress {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    z-index: 100;
+  }
+
+  .slide-number {
+    position: fixed;
+    bottom: 1rem;
+    right: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    z-index: 100;
+  }
+
+  .title-slide {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .title-slide h1 { font-size: 3.5rem; }
+  .title-slide .subtitle { font-size: 1.6rem; }
+
+  .vs-table td:first-child { font-weight: 600; color: var(--text); }
+
+  @media (max-width: 1024px) {
+    .slide { padding: 2rem 3rem; }
+    h1 { font-size: 2.2rem; }
+    h2 { font-size: 1.6rem; }
+    p, li { font-size: 1.05rem; }
+    pre { font-size: 0.8rem; }
+    .two-col { grid-template-columns: 1fr; }
+    .three-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- SLIDE 1: Fake Title -->
+<div class="slide title-slide active">
+  <p style="font-size:1rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1rem">Engineering All-Hands &bull; February 2026</p>
+  <h1 style="font-size:3.2rem">Frontend Architecture Update</h1>
+  <p class="subtitle">A strategic shift for the Easol platform</p>
+</div>
+
+<!-- SLIDE 2: Fake - The Case for Change -->
+<div class="slide">
+  <h2>Turbo Can't Keep Up With the AI Age</h2>
+  <div class="three-col" style="margin-top:1.5rem">
+    <div class="card">
+      <h3 class="red">Static Page Reloads</h3>
+      <p>Users expect instant, dynamic interfaces. Turbo Frames feel sluggish compared to SPA experiences. Full page navigations in 2026 are unacceptable.</p>
+    </div>
+    <div class="card">
+      <h3 class="red">AI-Driven UIs Need React</h3>
+      <p>Streaming LLM responses, real-time collaboration, dynamic dashboards &mdash; the AI-powered features our customers demand require a reactive JS framework.</p>
+    </div>
+    <div class="card">
+      <h3 class="red">Developer Experience</h3>
+      <p>78% of frontend candidates expect React or Vue. Turbo's "sprinkles of JS" philosophy is holding back hiring and velocity.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- SLIDE 3: Fake - Inertia Announcement -->
+<div class="slide" style="align-items:center;text-align:center">
+  <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1.5rem">
+    <span class="badge red" style="font-size:1.1rem;padding:0.5rem 1.2rem">APPROVED</span>
+    <span style="font-size:1.1rem;color:var(--text-dim)">Decision signed off by Kyle &bull; Effective immediately</span>
+  </div>
+  <h2 style="font-size:3.5rem">Easol is Moving to Inertia.js</h2>
+  <p style="font-size:1.5rem;color:var(--text);margin-top:1.5rem">
+    After careful evaluation, we've decided to adopt <strong class="highlight">Inertia.js + React</strong><br>as our primary frontend stack going forward.
+  </p>
+  <div style="margin-top:2rem;text-align:left;display:inline-block">
+    <div class="card" style="border-color:rgba(239,68,68,0.3);font-size:1.2rem">
+      <h3 class="red" style="font-size:1.5rem">What's Changing</h3>
+      <ul style="font-size:1.2rem">
+        <li>All new features built with <strong>Inertia.js + React</strong></li>
+        <li>Existing ViewComponents migrated to <strong>TSX</strong> over Q2-Q3</li>
+        <li>ActionCable replaced with <strong>Pusher</strong></li>
+        <li>Stimulus controllers <strong>deprecated</strong></li>
+      </ul>
+    </div>
+  </div>
+  <p style="margin-top:2rem;font-size:1.1rem;color:var(--text-dim)">
+    No further discussion needed. Please update your local environments accordingly.
+  </p>
+</div>
+
+<!-- SLIDE 4: JK -->
+<div class="slide title-slide">
+  <div style="margin-bottom:2rem">
+    <img src="https://media.giphy.com/media/JmD9mkDmzvXE7nxy7j/giphy.gif" alt="Just kidding" style="max-width:480px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+  </div>
+  <h1 style="font-size:3rem">Relax. We're staying on Turbo / Streams.</h1>
+  <p class="subtitle">In fact, we built something better. Let me show you.</p>
+</div>
+
+<!-- SLIDE 5: Real Title -->
+<div class="slide title-slide">
+  <h1>LiveComponent</h1>
+  <p class="subtitle">Real-Time Rails Without Template Duplication</p>
+  <p style="margin-top:2rem;font-size:1rem;color:var(--text-dim)">
+    One ERB template &rarr; Server rendering <strong>+</strong> Client re-rendering<br>
+    ActionCable &bull; ViewComponent &bull; Stimulus &bull; Idiomorph
+  </p>
+</div>
+
+<!-- SLIDE 2: The Problem -->
+<div class="slide">
+  <h2>The Problem</h2>
+  <div class="two-col">
+    <div class="card">
+      <h3 class="red">Turbo Streams</h3>
+      <p>Server re-renders full HTML on every update. Broadcast 5KB of markup when one field changes.</p>
+      <pre><code><span class="cm"># Every update = full HTML render</span>
+broadcast_replace_to stream,
+  <span class="sym">target:</span> dom_id(message),
+  <span class="sym">html:</span> render(component)</code></pre>
+    </div>
+    <div class="card">
+      <h3 class="red">Handwritten JS</h3>
+      <p>Duplicate every template in JS. Two files to maintain. They drift apart.</p>
+      <pre><code><span class="cm">// message_row.html.erb</span>
+&lt;%= @message.subject %&gt;
+
+<span class="cm">// message_row.js — same thing, again</span>
+el.textContent = data.subject</code></pre>
+    </div>
+  </div>
+  <p style="margin-top:1.5rem;font-size:1.3rem;color:var(--text)">
+    We need: <strong class="highlight">one template, client-side re-rendering, minimal data over the wire.</strong>
+  </p>
+</div>
+
+<!-- SLIDE 3: The Insight -->
+<div class="slide title-slide">
+  <h1>One ERB &rarr; Two Renderers</h1>
+  <p class="subtitle">Compile the same template to JavaScript at boot time.<br>Server renders HTML. Client re-renders from JSON.</p>
+  <div class="flow-diagram" style="justify-content:center;margin-top:2rem">
+    <div class="flow-box">ERB Template</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box accent">Ruby2JS Compiler</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">JS Function</div>
+  </div>
+  <p style="margin-top:1rem">~200 bytes of JSON replaces ~5KB of HTML per update.</p>
+</div>
+
+<!-- SLIDE 4: Architecture -->
+<div class="slide">
+  <h2>Architecture</h2>
+  <div class="two-col">
+    <div>
+      <h3>Server</h3>
+      <div class="flow-diagram" style="flex-direction:column;align-items:flex-start">
+        <div class="flow-box">ERB &rarr; Ruby2JS &rarr; JS function</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box">ViewComponent renders initial HTML</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box accent">Model changes &rarr; build_data() &rarr; JSON</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box">ActionCable broadcast</div>
+      </div>
+    </div>
+    <div>
+      <h3>Client</h3>
+      <div class="flow-diagram" style="flex-direction:column;align-items:flex-start">
+        <div class="flow-box">Stimulus controller connects</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box">Compiles embedded JS template</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box accent">ActionCable receives JSON</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box">JS function(data) &rarr; HTML string</div>
+        <span class="flow-arrow" style="transform:rotate(90deg);margin:0.3rem 0 0.3rem 3rem">&darr;</span>
+        <div class="flow-box">Idiomorph morphs DOM</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 5: Making a Component Live -->
+<div class="slide">
+  <h2>Making a Component Live</h2>
+  <pre><code><span class="kw">class</span> <span class="fn">MessageRowComponent</span> &lt; ApplicationComponent
+  <span class="kw">include</span> LiveComponent
+
+  subscribes_to <span class="sym">:message</span>
+  broadcasts <span class="sym">stream:</span> -&gt;(message) { [message.recipient, <span class="sym">:messages</span>] }
+
+  live_action <span class="sym">:toggle_star</span>
+  client_state <span class="sym">:selected</span>, <span class="sym">default:</span> <span class="kw">false</span>
+
+  <span class="kw">def</span> <span class="fn">initialize</span>(<span class="sym">message:</span>, <span class="sym">selected:</span> <span class="kw">false</span>)
+    <span class="sym">@message</span> = message
+    <span class="sym">@selected</span> = selected
+  <span class="kw">end</span>
+
+  <span class="kw">private</span>
+
+  <span class="kw">def</span> <span class="fn">toggle_star</span>
+    <span class="sym">@message</span>.toggle_starred!
+  <span class="kw">end</span>
+<span class="kw">end</span></code></pre>
+  <p>That's it. The ERB template stays exactly the same. No JS to write.</p>
+</div>
+
+<!-- SLIDE 6: DSL -->
+<div class="slide">
+  <h2>The DSL</h2>
+  <table>
+    <tr>
+      <th>Method</th>
+      <th>Purpose</th>
+    </tr>
+    <tr>
+      <td><code>subscribes_to :attr</code></td>
+      <td>Declares which model attribute drives this component</td>
+    </tr>
+    <tr>
+      <td><code>broadcasts stream:, prepend_target:</code></td>
+      <td>ActionCable stream (can be a lambda) + where to prepend new records</td>
+    </tr>
+    <tr>
+      <td><code>live_action :name, params: [...]</code></td>
+      <td>Server-side action callable from client (signed token)</td>
+    </tr>
+    <tr>
+      <td><code>client_state :name, default:</code></td>
+      <td>Client-side state that survives server re-renders</td>
+    </tr>
+  </table>
+  <h3 style="margin-top:1.5rem">Model Setup</h3>
+  <pre><code><span class="kw">class</span> <span class="fn">Message</span> &lt; ApplicationRecord
+  <span class="kw">include</span> Broadcastable
+  broadcasts_with MessageRowComponent, MessageDetailComponent, MessageLabelsComponent
+<span class="kw">end</span></code></pre>
+  <p>Hooks <code>after_create/update/destroy_commit</code> &rarr; builds data &rarr; broadcasts JSON.</p>
+</div>
+
+<!-- SLIDE 7: Compilation Pipeline -->
+<div class="slide">
+  <h2>Template Compilation Pipeline</h2>
+  <div class="flow-diagram">
+    <div class="flow-box">ERB</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">Erubi (Ruby buffer code)</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box accent">ErbExtractor</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">Ruby2JS</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">JS function</div>
+  </div>
+  <div class="two-col" style="margin-top:1rem">
+    <div>
+      <h3>Input (ERB)</h3>
+      <pre><code>&lt;%= tag.span <span class="sym">@message</span>.subject,
+    <span class="sym">class:</span> <span class="sym">@message</span>.read? ? <span class="str">"text-gray-500"</span> : <span class="str">"font-bold"</span> %&gt;
+
+&lt;%= time_ago_in_words(<span class="sym">@message</span>.created_at) %&gt;</code></pre>
+    </div>
+    <div>
+      <h3>Output (JS)</h3>
+      <pre><code><span class="kw">let</span> { v0, v1, v2 } = data;
+<span class="cm">// v0 = "@message.subject"</span>
+<span class="cm">// v1 = "@message.read?"</span>
+<span class="cm">// v2 = "time_ago_in_words(...)"</span>
+
+_buf += <span class="fn">_tag</span>(<span class="str">"span"</span>, v0, {
+  <span class="str">"class"</span>: v1 ? <span class="str">"text-gray-500"</span> : <span class="str">"font-bold"</span>
+});
+_buf += <span class="fn">_escape</span>(<span class="fn">String</span>(v2));</code></pre>
+    </div>
+  </div>
+  <p style="margin-top:0.5rem">
+    <strong class="highlight">Key insight:</strong> Ruby expressions become data keys. JS keeps only the rendering logic.
+  </p>
+</div>
+
+<!-- SLIDE 8: Extraction Pattern -->
+<div class="slide">
+  <h2>The Extraction Pattern</h2>
+  <p style="font-size:1.3rem;color:var(--text);margin-bottom:1rem">ERB expressions split into two categories:</p>
+  <div class="two-col">
+    <div class="card">
+      <h3>Server-Only <span class="badge red">extracted</span></h3>
+      <ul>
+        <li>Instance variable chains: <code>@message.subject</code></li>
+        <li>Constants: <code>Label.order(:name)</code></li>
+        <li>Helpers with ivars: <code>time_ago_in_words(@message.created_at)</code></li>
+        <li>Route helpers: <code>message_path(@message)</code></li>
+      </ul>
+      <p style="margin-top:0.8rem">Each gets a key (<code>v0</code>, <code>v1</code>...) and the Ruby source is stored for server-side evaluation.</p>
+    </div>
+    <div class="card">
+      <h3>Maps to JavaScript <span class="badge green">kept</span></h3>
+      <ul>
+        <li>Conditionals: <code>if/unless/ternary</code></li>
+        <li>Loops: <code>.each</code> &rarr; <code>for...of</code></li>
+        <li>String concatenation</li>
+        <li>Static HTML markup</li>
+      </ul>
+      <p style="margin-top:0.8rem">These stay in the compiled JS as-is. Pure rendering logic.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 9: Data Flow -->
+<div class="slide">
+  <h2>Server-Side Data Building</h2>
+  <pre><code><span class="cm"># build_data evaluates each extracted expression via DataEvaluator</span>
+
+evaluator = DataEvaluator.<span class="kw">new</span>(<span class="sym">:message</span>, record, <span class="sym">component_class:</span> MessageRowComponent)
+
+data = {
+  <span class="str">"v0"</span> =&gt; evaluator.evaluate(<span class="str">"@message.subject"</span>),       <span class="cm"># "Re: Meeting"</span>
+  <span class="str">"v1"</span> =&gt; evaluator.evaluate(<span class="str">"@message.read?"</span>),         <span class="cm"># false</span>
+  <span class="str">"v2"</span> =&gt; evaluator.evaluate(<span class="str">"time_ago_in_words(...)"</span>), <span class="cm"># "3 hours"</span>
+  <span class="str">"dom_id"</span> =&gt; <span class="str">"message_42"</span>,
+  <span class="str">"id"</span>     =&gt; <span class="num">42</span>
+}</code></pre>
+  <p style="margin-top:1rem">
+    <strong>DataEvaluator</strong> includes ActionView helpers, Rails routes, and delegates
+    private methods to a component instance. It's a sandbox that mirrors
+    the component's rendering context.
+  </p>
+  <p>The resulting ~200-byte JSON hash is broadcast over ActionCable.</p>
+</div>
+
+<!-- SLIDE 10: Collections -->
+<div class="slide">
+  <h2>Collection Handling</h2>
+  <div class="two-col">
+    <div>
+      <h3>ERB</h3>
+      <pre><code>&lt;% <span class="sym">@message</span>.labels.each <span class="kw">do</span> |label| %&gt;
+  &lt;span class="badge"&gt;
+    &lt;%= label.name %&gt;
+  &lt;/span&gt;
+&lt;% <span class="kw">end</span> %&gt;</code></pre>
+    </div>
+    <div>
+      <h3>Compiled JS</h3>
+      <pre><code><span class="kw">for</span> (<span class="kw">let</span> label <span class="kw">of</span> v0) {
+  _buf += <span class="str">'&lt;span class="badge"&gt;'</span>;
+  _buf += <span class="fn">_escape</span>(String(label.v1));
+  _buf += <span class="str">'&lt;/span&gt;'</span>;
+}</code></pre>
+    </div>
+  </div>
+  <h3 style="margin-top:1.5rem">Server builds per-item data</h3>
+  <pre><code><span class="cm"># v0 = "@message.labels" evaluated as collection</span>
+<span class="cm"># Per item: v1 = lambda { |label| label.name }</span>
+
+data[<span class="str">"v0"</span>] = <span class="sym">@message</span>.labels.map { |label| { <span class="str">"v1"</span> =&gt; label.name } }
+<span class="cm"># [{ "v1": "Work" }, { "v1": "Personal" }, { "v1": "Urgent" }]</span></code></pre>
+</div>
+
+<!-- SLIDE 11: Nested Components -->
+<div class="slide">
+  <h2>Nested Components</h2>
+  <p style="font-size:1.2rem;color:var(--text);margin-bottom:1rem">Any component with an ERB template is automatically compiled and inlined as a JS function.</p>
+  <div class="two-col">
+    <div>
+      <h3>Parent ERB</h3>
+      <pre><code>&lt;%= render FilterChipsComponent.new(
+  active_filters: <span class="sym">@active_filters</span>,
+  labels: <span class="sym">@labels</span>
+) %&gt;
+
+&lt;% <span class="sym">@messages</span>.each <span class="kw">do</span> |message| %&gt;
+  &lt;%= render MessageRowComponent.new(
+    message: message
+  ) %&gt;
+&lt;% <span class="kw">end</span> %&gt;</code></pre>
+    </div>
+    <div>
+      <h3>Compiled JS</h3>
+      <pre><code><span class="cm">// Child compiled as helper function</span>
+<span class="kw">function</span> <span class="fn">_render__nc0</span>(data) {
+  <span class="kw">let</span> { v0, v1 } = data;
+  <span class="kw">let</span> _buf = <span class="str">""</span>;
+  <span class="cm">// ... child template logic</span>
+  <span class="kw">return</span> _buf;
+}
+
+<span class="cm">// Parent calls it:</span>
+_buf += <span class="fn">_render__nc0</span>(filter_chips);
+
+<span class="kw">for</span> (<span class="kw">let</span> msg <span class="kw">of</span> messages) {
+  _buf += <span class="fn">_render_message_row</span>(msg);
+}</code></pre>
+    </div>
+  </div>
+  <p style="margin-top:1rem">
+    <span class="badge green">stateless</span> components inline as JS functions.
+    <span class="badge blue">live</span> components keep their own wrapper and ActionCable subscription.
+  </p>
+</div>
+
+<!-- SLIDE 12: Client State -->
+<div class="slide">
+  <h2>Client State</h2>
+  <p style="font-size:1.2rem;color:var(--text);margin-bottom:1rem">State that lives in the browser and survives server-triggered re-renders.</p>
+  <div class="two-col">
+    <div>
+      <h3>Declaration</h3>
+      <pre><code>client_state <span class="sym">:selected</span>, <span class="sym">default:</span> <span class="kw">false</span></code></pre>
+      <h3 style="margin-top:1rem">ERB (unchanged)</h3>
+      <pre><code>&lt;div class="&lt;%= <span class="sym">@selected</span> ?
+  <span class="str">'bg-blue-50'</span> : <span class="str">'bg-white'</span> %&gt;"&gt;
+  ...
+&lt;/div&gt;</code></pre>
+    </div>
+    <div>
+      <h3>Trigger from HTML</h3>
+      <pre><code>&lt;a data-action=<span class="str">"click-&gt;live-renderer#setState"</span>
+   data-live-renderer-selected-param=<span class="str">"true"</span>&gt;
+  Select
+&lt;/a&gt;</code></pre>
+      <h3 style="margin-top:1rem">Merge Strategy</h3>
+      <pre><code><span class="cm">// On server update:</span>
+merged = { ...serverData, ...clientState }
+<span class="cm">// Client state wins &rarr; selection preserved</span></code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 13: Live Actions -->
+<div class="slide">
+  <h2>Live Actions</h2>
+  <p style="font-size:1.2rem;color:var(--text);margin-bottom:1rem">Server-side mutations triggered from the client. Signed token prevents tampering.</p>
+  <div class="flow-diagram">
+    <div class="flow-box">Button click</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">POST /live_component_actions</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box accent">Verify token &amp; execute</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">Model updates</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box">Broadcast to all clients</div>
+  </div>
+  <div class="two-col" style="margin-top:1rem">
+    <div>
+      <h3>ERB</h3>
+      <pre><code>&lt;button
+  data-action=<span class="str">"click-&gt;live-renderer#performAction"</span>
+  data-live-renderer-action-param=<span class="str">"toggle_star"</span>&gt;
+  Star
+&lt;/button&gt;</code></pre>
+    </div>
+    <div>
+      <h3>Component</h3>
+      <pre><code>live_action <span class="sym">:toggle_star</span>
+live_action <span class="sym">:add_label</span>, <span class="sym">params:</span> [<span class="sym">:label_id</span>]
+
+<span class="kw">private</span>
+
+<span class="kw">def</span> <span class="fn">toggle_star</span>
+  <span class="sym">@message</span>.toggle_starred!
+<span class="kw">end</span></code></pre>
+    </div>
+  </div>
+  <p style="margin-top:1rem">Token encodes <code>{ class, model, record_id }</code>. Server allocates component, sets model, calls method. Broadcast follows automatically.</p>
+</div>
+
+<!-- SLIDE 14: Strategies -->
+<div class="slide">
+  <h2>Update Strategies</h2>
+  <div class="two-col">
+    <div class="card">
+      <h3><span class="badge blue">push</span> Default</h3>
+      <p>Server always sends full JSON data on every model change.</p>
+      <div class="flow-diagram" style="flex-direction:column;align-items:flex-start;margin-top:1rem">
+        <div class="flow-box" style="font-size:0.85rem">Model updates</div>
+        <span class="flow-arrow">&darr;</span>
+        <div class="flow-box" style="font-size:0.85rem">build_data() &rarr; JSON broadcast</div>
+        <span class="flow-arrow">&darr;</span>
+        <div class="flow-box accent" style="font-size:0.85rem">Client re-renders immediately</div>
+      </div>
+      <p style="margin-top:0.8rem"><strong>Use for:</strong> Individual components (rows, cards, details)</p>
+    </div>
+    <div class="card">
+      <h3><span class="badge amber">notify</span> On Demand</h3>
+      <p>Server sends just a notification. Client requests fresh data.</p>
+      <div class="flow-diagram" style="flex-direction:column;align-items:flex-start;margin-top:1rem">
+        <div class="flow-box" style="font-size:0.85rem">Model updates</div>
+        <span class="flow-arrow">&darr;</span>
+        <div class="flow-box" style="font-size:0.85rem">"update" notification (no data)</div>
+        <span class="flow-arrow">&darr;</span>
+        <div class="flow-box" style="font-size:0.85rem">Client calls request_update</div>
+        <span class="flow-arrow">&darr;</span>
+        <div class="flow-box accent" style="font-size:0.85rem">Server checks filters &rarr; render or remove</div>
+      </div>
+      <p style="margin-top:0.8rem"><strong>Use for:</strong> Filtered lists that need server-side logic</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 15: Morphing -->
+<div class="slide">
+  <h2>DOM Morphing &amp; Debug Tools</h2>
+  <div class="two-col">
+    <div>
+      <h3>Idiomorph</h3>
+      <pre><code>Idiomorph.morph(element, newContent, {
+  <span class="sym">morphStyle:</span> <span class="str">"innerHTML"</span>,
+  <span class="sym">ignoreActiveValue:</span> <span class="kw">true</span>
+})</code></pre>
+      <ul style="margin-top:1rem">
+        <li>Smart diffing &mdash; only touches changed nodes</li>
+        <li>Preserves focus, scroll position, form state</li>
+        <li><span class="green">Green flash animation</span> on morph (CSS <code>::after</code> pseudo-element, z-index 100)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Debug Mode</h3>
+      <pre><code>LiveComponent.debug = <span class="kw">true</span>
+<span class="cm"># Default: Rails.env.development?</span></code></pre>
+      <ul style="margin-top:1rem">
+        <li>Templates sent as <strong>raw JS</strong> (not base64)</li>
+        <li><span class="highlight">Blue dashed outlines</span> around every live wrapper</li>
+        <li>CSS <code>::before</code> badges showing component name + DOM ID</li>
+        <li>Nested JS-rendered components also get badges</li>
+        <li>Badges survive morph (pseudo-elements, not DOM nodes)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 16: Shared Subscriptions -->
+<div class="slide">
+  <h2>Shared WebSocket Subscriptions</h2>
+  <p style="font-size:1.2rem;color:var(--text);margin-bottom:1rem">100 MessageRow instances on the same contact don't need 100 subscriptions.</p>
+  <pre><code><span class="cm">// One subscription per stream, multiple handlers</span>
+<span class="kw">function</span> <span class="fn">subscribe</span>(streamValue, controller) {
+  <span class="kw">let</span> sub = <span class="fn">findSubscription</span>(streamValue)
+
+  <span class="kw">if</span> (!sub) {
+    sub = consumer.subscriptions.<span class="fn">create</span>(
+      { channel: <span class="str">"LiveComponentChannel"</span>, signed_stream_name: streamValue },
+      { received: (message) =&gt; {
+          <span class="kw">for</span> (<span class="kw">const</span> handler <span class="kw">of</span> sub.handlers)
+            handler.<span class="fn">handleMessage</span>(decoded)
+      }}
+    )
+    sub.handlers = <span class="kw">new</span> Set()
+  }
+  sub.handlers.<span class="fn">add</span>(controller)
+}</code></pre>
+  <p>Each handler checks <code>data.dom_id === this.element.id</code> before rendering. Automatic cleanup on disconnect.</p>
+</div>
+
+<!-- SLIDE 17: Security -->
+<div class="slide">
+  <h2>Security</h2>
+  <div class="three-col">
+    <div class="card">
+      <h3>Stream Auth</h3>
+      <p>Turbo's signed stream names. Server signs, client sends signed token. Can't subscribe to arbitrary streams.</p>
+      <pre style="font-size:0.8rem"><code>Turbo::StreamsChannel
+  .signed_stream_name(
+    [contact, :messages]
+  )</code></pre>
+    </div>
+    <div class="card">
+      <h3>Action Tokens</h3>
+      <p>MessageVerifier with purpose <code>:live_component_action</code>. Encodes class, model, record ID.</p>
+      <pre style="font-size:0.8rem"><code>{ c: <span class="str">"MessageRow"</span>,
+  m: <span class="str">"Message"</span>,
+  r: <span class="num">42</span> }</code></pre>
+    </div>
+    <div class="card">
+      <h3>HTML Escaping</h3>
+      <p>All interpolations wrapped in <code>_escape()</code> by default. Only <code>raw()</code> bypasses.</p>
+      <pre style="font-size:0.8rem"><code><span class="fn">_escape</span>(s)
+  .replaceAll(<span class="str">"&lt;"</span>, <span class="str">"&amp;lt;"</span>)
+  .replaceAll(<span class="str">"&gt;"</span>, <span class="str">"&amp;gt;"</span>)
+  ...</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 18: File Map -->
+<div class="slide">
+  <h2>Key Files</h2>
+  <table>
+    <tr><th>File</th><th>Role</th></tr>
+    <tr>
+      <td><code>concerns/live_component.rb</code></td>
+      <td>DSL, render_in override, build_data, execute_action</td>
+    </tr>
+    <tr>
+      <td><code>lib/live_component/compiler.rb</code></td>
+      <td>ERB &rarr; JS compilation, nested component embedding</td>
+    </tr>
+    <tr>
+      <td><code>lib/live_component/erb_extractor.rb</code></td>
+      <td>Ruby2JS filter: extracts server-only expressions</td>
+    </tr>
+    <tr>
+      <td><code>lib/live_component/data_evaluator.rb</code></td>
+      <td>Evaluates Ruby expressions against live records</td>
+    </tr>
+    <tr>
+      <td><code>lib/live_component/wrapper.rb</code></td>
+      <td>Wraps HTML in &lt;div&gt; with Stimulus data attributes</td>
+    </tr>
+    <tr>
+      <td><code>channels/live_component_channel.rb</code></td>
+      <td>ActionCable: subscriptions, broadcasts, request_update</td>
+    </tr>
+    <tr>
+      <td><code>models/concerns/broadcastable.rb</code></td>
+      <td>AR callbacks &rarr; build_data &rarr; broadcast</td>
+    </tr>
+    <tr>
+      <td><code>controllers/live_renderer_controller.js</code></td>
+      <td>Stimulus: compile template, subscribe, render, morph</td>
+    </tr>
+  </table>
+</div>
+
+<!-- SLIDE 19: Comparison -->
+<div class="slide">
+  <h2>vs. Alternatives</h2>
+  <table class="vs-table">
+    <tr>
+      <th></th>
+      <th>LiveComponent</th>
+      <th>Turbo Streams</th>
+      <th>LiveView / Hotwire Live</th>
+    </tr>
+    <tr>
+      <td>Template duplication</td>
+      <td class="green">None</td>
+      <td class="green">None</td>
+      <td class="green">None</td>
+    </tr>
+    <tr>
+      <td>Data over wire</td>
+      <td class="green">~200B JSON</td>
+      <td class="red">~5KB HTML</td>
+      <td class="amber">Diff patches</td>
+    </tr>
+    <tr>
+      <td>Server load per update</td>
+      <td class="green">build_data only</td>
+      <td class="red">Full HTML render</td>
+      <td class="red">Full re-render + diff</td>
+    </tr>
+    <tr>
+      <td>Client-side state</td>
+      <td class="green">Built-in merge</td>
+      <td class="red">Lost on replace</td>
+      <td class="amber">Hooks needed</td>
+    </tr>
+    <tr>
+      <td>Persistent connection</td>
+      <td class="amber">ActionCable</td>
+      <td class="amber">ActionCable</td>
+      <td class="red">Required (stateful)</td>
+    </tr>
+    <tr>
+      <td>JS templates needed</td>
+      <td class="green">Auto-compiled</td>
+      <td class="green">None</td>
+      <td class="green">None</td>
+    </tr>
+  </table>
+</div>
+
+<!-- SLIDE 20: Summary -->
+<div class="slide title-slide">
+  <h1>One ERB. Zero Duplication.<br>~200 Bytes Per Update.</h1>
+  <p class="subtitle" style="margin-top:1.5rem">
+    Compile once at boot. Push JSON. Render in the browser. Morph the DOM.
+  </p>
+  <div class="three-col" style="margin-top:2rem;text-align:center">
+    <div>
+      <div class="big-number">1</div>
+      <p>Template per component</p>
+    </div>
+    <div>
+      <div class="big-number">~200B</div>
+      <p>Per update (vs 5KB HTML)</p>
+    </div>
+    <div>
+      <div class="big-number">0</div>
+      <p>JS templates to maintain</p>
+    </div>
+  </div>
+</div>
+
+
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="slide-number" id="slideNumber"></div>
+
+<script>
+const slides = document.querySelectorAll('.slide')
+let current = 0
+
+function show(index) {
+  if (index < 0 || index >= slides.length) return
+  slides[current].classList.remove('active')
+  current = index
+  slides[current].classList.add('active')
+  document.getElementById('progress').style.width = ((current + 1) / slides.length * 100) + '%'
+  document.getElementById('slideNumber').textContent = (current + 1) + ' / ' + slides.length
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(current + 1) }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(current - 1) }
+  if (e.key === 'Home') { e.preventDefault(); show(0) }
+  if (e.key === 'End') { e.preventDefault(); show(slides.length - 1) }
+})
+
+document.addEventListener('click', e => {
+  if (e.clientX > window.innerWidth / 2) show(current + 1)
+  else show(current - 1)
+})
+
+let touchStartX = 0
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX })
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX
+  if (Math.abs(dx) > 50) dx < 0 ? show(current + 1) : show(current - 1)
+})
+
+show(0)
+</script>
+
+</body>
+</html>
