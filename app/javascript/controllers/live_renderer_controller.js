@@ -12,18 +12,22 @@ async function decompress(base64) {
   return new Response(stream).json()
 }
 
-function compileTemplate(encoded) {
-  if (templateCache.has(encoded)) return templateCache.get(encoded)
+function compileTemplate(source) {
+  if (templateCache.has(source)) return templateCache.get(source)
 
   try {
-    const body = atob(encoded)
+    const body = isBase64(source) ? atob(source) : source
     const fn = new Function("data", body)
-    templateCache.set(encoded, fn)
+    templateCache.set(source, fn)
     return fn
   } catch (e) {
     log("ERROR compiling template:", e)
     return null
   }
+}
+
+function isBase64(str) {
+  return /^[A-Za-z0-9+/\n]+=*$/.test(str.trim())
 }
 
 function findSubscription(streamValue) {
@@ -38,9 +42,6 @@ function subscribe(streamValue, controller) {
     sub = consumer.subscriptions.create(
       { channel: "LiveComponentChannel", signed_stream_name: streamValue },
       {
-        connected: () => log("stream connected"),
-        disconnected: () => log("stream disconnected"),
-        rejected: () => log("ERROR stream rejected"),
         received: async (message) => {
           const decoded = message.z ? await decompress(message.z) : message
           for (const handler of sub.handlers) {
@@ -79,8 +80,6 @@ export default class extends Controller {
   }
 
   connect() {
-    log("connect", this.element.id)
-
     this.clientState = { ...this.stateValue }
     this.lastServerData = Object.keys(this.dataValue).length > 0 ? this.dataValue : null
 
@@ -88,23 +87,15 @@ export default class extends Controller {
     this.renderFn = encoded ? compileTemplate(encoded) : null
 
     if (!this.renderFn) {
-      if (this.hasTemplateValue || this.hasTemplateIdValue) {
-        log("ERROR no render function, skipping")
-      }
       if (!this.streamValue) return
     }
-    log("template compiled")
 
-    if (!this.streamValue) {
-      log("no stream value, skipping subscription")
-      return
-    }
+    if (!this.streamValue) return
 
     subscribe(this.streamValue, this)
   }
 
   disconnect() {
-    log("disconnect", this.element.id)
     if (this.streamValue) {
       unsubscribe(this.streamValue, this)
     }
@@ -116,7 +107,6 @@ export default class extends Controller {
     if (this.hasTemplateIdValue) {
       const el = document.getElementById(this.templateIdValue)
       if (el) return el.textContent
-      log("ERROR template element not found:", this.templateIdValue)
     }
 
     return null
@@ -125,12 +115,21 @@ export default class extends Controller {
   handleMessage(message) {
     const { action, data } = message
 
+    if (action === "render" && data?.dom_id === this.element.id) {
+      log("render", this.element.id, data)
+      this.lastServerData = data
+      if (this.renderFn) this.render({ ...data, ...this.clientState })
+      return
+    }
+
+    if (this.strategyValue === "notify" && (action === "update" || action === "destroy")) {
+      log("update", this.element.id, { action, strategy: "notify" })
+      this.requestUpdate()
+      return
+    }
+
     if (action === "update" && data?.dom_id === this.element.id) {
-      if (this.strategyValue === "notify" && !this._awaitingResponse) {
-        this.requestUpdate(data)
-        return
-      }
-      this._awaitingResponse = false
+      log("update", this.element.id, data)
       this.lastServerData = data
       if (this.renderFn) this.render({ ...data, ...this.clientState })
       this.element.dispatchEvent(new CustomEvent("live-renderer:updated", {
@@ -140,29 +139,30 @@ export default class extends Controller {
     } else if (action === "remove" && (message.dom_id || data?.dom_id) === this.element.id) {
       this.element.remove()
     } else if (action === "destroy" && data?.dom_id === this.element.id) {
-      log("removing element", this.element.id)
       this.element.remove()
     }
   }
 
-  requestUpdate(data) {
-    const sub = findSubscription(this.streamValue)
-    if (!sub) return
+  requestUpdate() {
+    if (this._updateTimer) clearTimeout(this._updateTimer)
 
-    this._awaitingResponse = true
-    sub.perform("request_update", {
-      dom_id: this.element.id,
-      component: this.componentValue,
-      record_id: data.id,
-      params: this.paramsValue
-    })
+    this._updateTimer = setTimeout(() => {
+      this._updateTimer = null
+      const sub = findSubscription(this.streamValue)
+      if (!sub) return
+
+      sub.perform("request_update", {
+        component: this.componentValue,
+        record_id: this.dataValue?.id,
+        dom_id: this.element.id,
+        params: this.paramsValue
+      })
+    }, 50)
   }
 
   render(data) {
-    log("render", this.element.id)
     const newHtml = this.renderFn(data)
     this.morph(newHtml)
-    log("morphed", this.element.id)
   }
 
   performAction(event) {
@@ -244,5 +244,9 @@ export default class extends Controller {
     } else {
       this.element.innerHTML = newContent.innerHTML
     }
+
+    this.element.classList.remove("live-morph-flash")
+    void this.element.offsetWidth
+    this.element.classList.add("live-morph-flash")
   }
 }
