@@ -18,14 +18,24 @@ class LiveComponentChannel < ApplicationCable::Channel
 
   def request_update(data)
     component_class = data["component"].constantize
+    params = data["params"] || {}
+
     model_class = component_class.live_model_attr.to_s.classify.constantize
-    record = model_class.find_by(id: data["record_id"])
+    record_id = data["record_id"] || params.delete("record_id")
+    record = model_class.find_by(id: record_id)
     return unless record
 
-    if matches_filters?(record, data["params"] || {})
-      transmit({ "action" => "update", "data" => component_class.build_data(record) })
+    if data["record_id"].present?
+      # Per-record update (e.g., individual row with filters)
+      if matches_filters?(record, params)
+        transmit({ "action" => "render", "data" => component_class.build_data(record) })
+      else
+        transmit({ "action" => "remove", "dom_id" => data["dom_id"] })
+      end
     else
-      transmit({ "action" => "remove", "dom_id" => data["dom_id"] })
+      # Component-level update (e.g., list component re-render)
+      result = component_class.build_data(record, **params.symbolize_keys)
+      transmit({ "action" => "render", "data" => result })
     end
   end
 
