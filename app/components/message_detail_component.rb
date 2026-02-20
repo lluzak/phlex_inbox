@@ -4,7 +4,7 @@ class MessageDetailComponent < ApplicationComponent
   include LiveComponent
 
   subscribes_to :message
-  broadcasts stream: ->(message) { [message.recipient, :messages] }
+  broadcasts stream: ->(message) { [ message.recipient, :messages ] }
 
   def self.dom_id_prefix
     :detail
