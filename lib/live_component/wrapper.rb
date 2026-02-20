@@ -4,13 +4,13 @@ module LiveComponent
   module Wrapper
     module_function
 
-    def wrap(component_class, record, inner_html, stream: nil, client_state: nil)
+    def wrap(component_class, record, inner_html, stream: nil, client_state: nil, strategy: nil, component_name: nil, params: nil, template_id: nil)
       dom_id_val = component_class.dom_id_for(record)
 
       attrs = [
         %(id="#{dom_id_val}"),
         %(data-controller="live-renderer"),
-        %(data-live-renderer-template-value="#{component_class.encoded_template}")
+        %(data-live-renderer-template-id-value="#{template_id || component_class.template_element_id}")
       ]
 
       if stream
@@ -27,6 +27,24 @@ module LiveComponent
         attrs << %(data-live-renderer-state-value="#{ERB::Util.html_escape(client_state.to_json)}")
         initial_data = component_class.build_data(record, **client_state.symbolize_keys)
         attrs << %(data-live-renderer-data-value="#{ERB::Util.html_escape(initial_data.to_json)}")
+      end
+
+      if strategy
+        attrs << %(data-live-renderer-strategy-value="#{strategy}")
+      end
+
+      if component_name
+        attrs << %(data-live-renderer-component-value="#{component_name}")
+      end
+
+      if params
+        attrs << %(data-live-renderer-params-value="#{ERB::Util.html_escape(params.to_json)}")
+      end
+
+      if LiveComponent.debug
+        debug_label = "#{component_class.name.underscore.humanize} ##{dom_id_val}"
+        attrs << %(data-live-debug="#{debug_label}")
+        attrs << %(class="live-debug-wrapper")
       end
 
       %(<div #{attrs.join(" ")}>#{inner_html}</div>).html_safe
