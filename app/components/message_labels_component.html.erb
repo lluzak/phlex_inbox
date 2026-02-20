@@ -1,11 +1,11 @@
-<div class="flex items-center gap-2 px-6 py-2 border-b border-gray-200">
-  <span class="text-xs font-medium text-gray-500 mr-1">Labels:</span>
+<div class="flex items-center gap-2 px-6 py-2 border-b border-gray-200 overflow-x-auto">
+  <span class="text-xs font-medium text-gray-500 mr-1 shrink-0">Labels:</span>
   <% @labels.each do |label| %>
     <button type="button"
       data-action="click->live-renderer#performAction"
       data-live-renderer-action-param="<%= label_action(@message, label) %>"
       data-live-renderer-label-id-param="<%= label.id %>"
-      class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium cursor-pointer <%= label_css(@message, label) %>">
+      class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium cursor-pointer shrink-0 <%= label_css(@message, label) %>">
       <%= label_text(@message, label) %>
     </button>
   <% end %>
