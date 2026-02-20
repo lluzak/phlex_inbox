@@ -37,11 +37,12 @@ module LiveComponent
 
       extraction = { expressions: {}, raw_fields: Set.new }
 
-      nestable_checker = lambda do |class_name|
+      nestable_checker = lambda do |class_name, inside_block: false|
         klass = class_name.safe_constantize
         return nil unless klass
-        return nil unless klass.respond_to?(:compiled_data)
-        return nil if klass.respond_to?(:_live_model_attr) && klass._live_model_attr
+        # Components with their own model attr are only nestable inside collection loops
+        # (where we can call build_data per item), not as standalone nested components
+        return nil if !inside_block && klass.respond_to?(:_live_model_attr) && klass._live_model_attr
         begin; read_erb(klass); klass; rescue; nil; end
       end
 
@@ -66,8 +67,11 @@ module LiveComponent
 
       # Compile nested component templates and embed as JS functions
       nested_functions_js = ""
+      embedded_classes = Set.new
+
       nested_components.each do |key, info|
         child_class = info[:class_name].constantize
+        embedded_classes << child_class.name
         child_compiled = compile(child_class)
         child_body = unwrap_function(
           child_compiled[:raw_js_function],
@@ -75,9 +79,40 @@ module LiveComponent
           child_compiled[:raw_fields],
           include_helpers: false
         )
+        if LiveComponent.debug
+          debug_label = info[:class_name].underscore.humanize
+          child_body = wrap_debug_return(child_body, debug_label)
+        end
         nested_functions_js += "function _render_#{key}(data) {\n"
         nested_functions_js += child_body.gsub(/^/, "  ") + "\n"
         nested_functions_js += "}\n"
+      end
+
+      # Embed JS functions for nested components used inside collection loops
+      collection_computed.each_value do |cc_info|
+        (cc_info[:expressions] || {}).each_value do |expr_info|
+          next unless expr_info[:nested_component]
+          nc_class_name = expr_info[:nested_component][:class_name]
+          next if embedded_classes.include?(nc_class_name)
+          embedded_classes << nc_class_name
+
+          child_class = nc_class_name.constantize
+          child_compiled = compile(child_class)
+          fn_name = nc_class_name.underscore
+          child_body = unwrap_function(
+            child_compiled[:raw_js_function],
+            child_compiled[:fields],
+            child_compiled[:raw_fields],
+            include_helpers: false
+          )
+          if LiveComponent.debug
+            debug_label = nc_class_name.underscore.humanize
+            child_body = wrap_debug_return(child_body, debug_label)
+          end
+          nested_functions_js += "function _render_#{fn_name}(data) {\n"
+          nested_functions_js += child_body.gsub(/^/, "  ") + "\n"
+          nested_functions_js += "}\n"
+        end
       end
 
       fields = (expressions.keys + simple_ivars + nested_components.keys).uniq.sort
@@ -100,6 +135,32 @@ module LiveComponent
 
     def compile_js(component_class)
       compile(component_class)[:js_body]
+    end
+
+    def compiled_data_for(klass)
+      @compiled_data_cache ||= {}
+      @compiled_data_cache[klass.name] ||= compile(klass)
+    end
+
+    def build_data_for_nested(klass, **kwargs)
+      compiled = compiled_data_for(klass)
+      evaluator = LiveComponent::DataEvaluator.new(nil, nil, component_class: klass, **kwargs)
+      data = {}
+      collection_computed = compiled[:collection_computed] || {}
+
+      compiled[:expressions].each do |var_name, ruby_source|
+        data[var_name] = if collection_computed.key?(var_name)
+          evaluator.evaluate_collection(ruby_source, collection_computed[var_name])
+        else
+          evaluator.evaluate(ruby_source)
+        end
+      end
+
+      compiled[:simple_ivars].each do |ivar_name|
+        data[ivar_name] = kwargs[ivar_name.to_sym] if kwargs.key?(ivar_name.to_sym)
+      end
+
+      data
     end
 
     def extract_ivar_names(erb_ruby)
@@ -134,6 +195,11 @@ module LiveComponent
       escaped_body = add_html_escaping(body, raw_fields)
       helpers = include_helpers ? "#{ESCAPE_FN_JS}#{TAG_FN_JS}" : ""
       "#{helpers}#{destructure}#{escaped_body}"
+    end
+
+    def wrap_debug_return(body, label)
+      wrapper = "return '<div data-live-debug=\"#{label}' + (data.dom_id ? ' #' + data.dom_id : '') + '\" class=\"live-debug-wrapper\">' + _buf + '</div>';"
+      body.sub(/return _buf\s*\z/, wrapper)
     end
 
     def add_html_escaping(body, raw_fields)

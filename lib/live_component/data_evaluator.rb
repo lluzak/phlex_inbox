@@ -7,7 +7,9 @@ module LiveComponent
     include ActionView::Helpers::NumberHelper
     include ActionView::Helpers::TagHelper
     include ActionView::Helpers::OutputSafetyHelper
+    include ActionView::RecordIdentifier
     include Rails.application.routes.url_helpers
+    include ActionView::Helpers::UrlHelper
 
     def initialize(model_attr, record, component_class: nil, **kwargs)
       instance_variable_set(:"@#{model_attr}", record) if model_attr
@@ -38,23 +40,57 @@ module LiveComponent
     end
 
     def render(renderable, &block)
-      view_context = ApplicationController.new.view_context
-      renderable.render_in(view_context, &block)
+      renderable.instance_variable_set(:@_skip_live_wrapper, true) if renderable.class.include?(LiveComponent)
+      ApplicationController.render(renderable, layout: false)
     end
 
     def evaluate_collection(ruby_source, computed)
-      collection = instance_eval(ruby_source)
+      collection = begin
+        instance_eval(ruby_source)
+      rescue NameError
+        @component_delegate&.instance_eval(ruby_source)
+      end
+      return [] unless collection
+
       block_var = computed[:block_var]
+      eval_context = self
 
       lambdas = {}
+      nested = {}
       (computed[:expressions] || {}).each do |var_name, info|
-        lambdas[var_name] = instance_eval("lambda { |#{block_var}| #{info[:source]} }")
+        if info[:nested_component]
+          nc = info[:nested_component]
+          klass = nc[:class_name].constantize
+          kwarg_lambdas = {}
+          nc[:kwargs].each do |kw_name, kw_source|
+            kwarg_lambdas[kw_name.to_sym] = eval_lambda(block_var, kw_source)
+          end
+          nested[var_name] = { klass: klass, kwargs: kwarg_lambdas }
+        else
+          lambdas[var_name] = eval_lambda(block_var, info[:source])
+        end
       end
 
       collection.map do |item|
-        lambdas.each_with_object({}) do |(var_name, fn), result|
+        result = {}
+        lambdas.each do |var_name, fn|
           result[var_name] = fn.call(item).to_s
         end
+        nested.each do |var_name, nc_info|
+          kwargs_values = nc_info[:kwargs].transform_values { |fn| fn.call(item) }
+          klass = nc_info[:klass]
+          if klass.respond_to?(:live_model_attr) && klass.live_model_attr
+            record = kwargs_values.delete(klass.live_model_attr)
+            result[var_name] = klass.build_data(record, **kwargs_values)
+          else
+            result[var_name] = if klass.respond_to?(:build_data_for_nested)
+              klass.build_data_for_nested(**kwargs_values)
+            else
+              LiveComponent::Compiler.build_data_for_nested(klass, **kwargs_values)
+            end
+          end
+        end
+        result
       end
     end
 
@@ -62,7 +98,17 @@ module LiveComponent
       Rails.application.routes.default_url_options
     end
 
+    def optimize_routes_generation?
+      false
+    end
+
     private
+
+    def eval_lambda(block_var, source)
+      instance_eval("lambda { |#{block_var}| #{source} }")
+    rescue NameError
+      @component_delegate.instance_eval("lambda { |#{block_var}| #{source} }")
+    end
 
     def method_missing(method, *args, **kwargs, &block)
       if component_own_method?(method)

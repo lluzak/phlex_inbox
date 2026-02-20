@@ -67,11 +67,11 @@ module LiveComponent
         collection_key: nil
       )
 
-      # For bare ivar targets (e.g., @labels.each), the Functions filter
-      # converts the block to for...of without dispatching to on_send/on_ivar,
-      # so the collection is never extracted. Pre-extract the ivar here and
-      # rewrite the block node so the JS references the extracted variable.
-      if target.type == :ivar && collection_source
+      # For bare ivar/const targets (e.g., @labels.each, STATUS_FILTERS.each),
+      # the Functions filter converts the block to for...of without dispatching
+      # to on_send/on_ivar, so the collection is never extracted. Pre-extract
+      # here and rewrite the block node so the JS references the extracted variable.
+      if (target.type == :ivar || target.type == :const) && collection_source
         key = record_collection_extraction(target)
         current_block_context[:collection_key] = key
         new_call = s(:send, s(:lvar, key.to_sym), :each)
@@ -116,11 +116,22 @@ module LiveComponent
         new_call = send_node.children[2]
         const_node = new_call.children[0]
         class_name = rebuild_source(const_node)
-        klass = @nestable_checker.call(class_name)
+        inside_block = in_block_context? && contains_block_var?(send_node)
+        klass = @nestable_checker.call(class_name, inside_block: inside_block)
         if klass
-          key = record_nested_component(send_node, class_name)
-          return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
-            s(:send, nil, :"_render_#{key}", s(:lvar, key.to_sym)))
+          if inside_block
+            # Nested component inside a collection: per-item data + JS render function
+            key = record_block_nested_component(send_node, class_name)
+            block_var = current_block_context[:var]
+            prop = s(:send, s(:lvar, block_var), :[], s(:str, key))
+            fn_name = :"_render_#{class_name.underscore}"
+            return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
+              s(:send, nil, fn_name, prop))
+          else
+            key = record_nested_component(send_node, class_name)
+            return s(:op_asgn, s(:lvasgn, @erb_bufvar), :+,
+              s(:send, nil, :"_render_#{key}", s(:lvar, key.to_sym)))
+          end
         end
       end
 
@@ -371,6 +382,30 @@ module LiveComponent
     end
 
     # --- Nested component recording ---
+
+    def record_block_nested_component(send_node, class_name)
+      new_call = send_node.children[2]
+      hash_node = new_call.children[2]
+
+      kwargs = {}
+      if hash_node && ast_node?(hash_node) && hash_node.type == :hash
+        hash_node.children.each do |pair|
+          next unless ast_node?(pair) && pair.type == :pair
+          kwarg_name = pair.children[0].children[0].to_s
+          kwarg_source = rebuild_source(pair.children[1])
+          kwargs[kwarg_name] = kwarg_source
+        end
+      end
+
+      key = next_key
+      computed = current_block_context[:computed]
+      computed[key] = {
+        source: nil,
+        raw: true,
+        nested_component: { class_name: class_name, kwargs: kwargs }
+      }
+      key
+    end
 
     def record_nested_component(send_node, class_name)
       key = "_nc#{@nested_counter}"

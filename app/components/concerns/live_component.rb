@@ -3,6 +3,8 @@
 module LiveComponent
   extend ActiveSupport::Concern
 
+  mattr_accessor :debug, default: Rails.env.development?
+
   included do
     class_attribute :_live_model_attr, instance_writer: false
     class_attribute :_live_actions, instance_writer: false, default: {}
@@ -13,6 +15,7 @@ module LiveComponent
   def render_in(view_context, &block)
     inner_html = super
     return inner_html unless self.class._live_model_attr
+    return inner_html if @_skip_live_wrapper
 
     record = instance_variable_get(:"@#{self.class.live_model_attr}")
     return inner_html unless record
@@ -28,7 +31,12 @@ module LiveComponent
       self.class.client_state_values(**kwargs)
     end
 
-    LiveComponent::Wrapper.wrap(self.class, record, inner_html, stream: stream, client_state: client_state)
+    extra_opts = respond_to?(:live_wrapper_options, true) ? live_wrapper_options : {}
+
+    wrapped = LiveComponent::Wrapper.wrap(self.class, record, inner_html, stream: stream, client_state: client_state, **extra_opts)
+
+    template_script = self.class.template_script_tag(view_context)
+    template_script ? (template_script + wrapped).html_safe : wrapped
   end
 
   class_methods do
@@ -98,11 +106,24 @@ module LiveComponent
     end
 
     def encoded_template
-      @encoded_template ||= Base64.strict_encode64(compiled_template_js)
+      @encoded_template ||= if LiveComponent.debug
+        compiled_template_js
+      else
+        Base64.strict_encode64(compiled_template_js)
+      end
     end
 
     def template_element_id
       @template_element_id ||= "#{name.underscore}_template"
+    end
+
+    def template_script_tag(view_context)
+      emitted = (view_context.instance_variable_get(:@_live_component_templates) || Set.new)
+      return nil if emitted.include?(name)
+
+      emitted.add(name)
+      view_context.instance_variable_set(:@_live_component_templates, emitted)
+      %(<script type="text/x-template" id="#{template_element_id}">#{encoded_template}</script>).html_safe
     end
 
     def dom_id_for(record)
@@ -116,8 +137,14 @@ module LiveComponent
     def build_data_for_nested(**kwargs)
       evaluator = LiveComponent::DataEvaluator.new(nil, nil, component_class: self, **kwargs)
       data = {}
+      collection_computed = compiled_data[:collection_computed] || {}
+
       compiled_data[:expressions].each do |var_name, ruby_source|
-        data[var_name] = evaluator.evaluate(ruby_source)
+        data[var_name] = if collection_computed.key?(var_name)
+          evaluator.evaluate_collection(ruby_source, collection_computed[var_name])
+        else
+          evaluator.evaluate(ruby_source)
+        end
       end
       compiled_data[:simple_ivars].each do |ivar_name|
         data[ivar_name] = kwargs[ivar_name.to_sym] if kwargs.key?(ivar_name.to_sym)
@@ -148,7 +175,11 @@ module LiveComponent
         info[:kwargs].each do |kwarg_name, ruby_source|
           kwargs_values[kwarg_name.to_sym] = evaluator.evaluate(ruby_source)
         end
-        data[key] = klass.build_data_for_nested(**kwargs_values)
+        data[key] = if klass.respond_to?(:build_data_for_nested)
+          klass.build_data_for_nested(**kwargs_values)
+        else
+          LiveComponent::Compiler.build_data_for_nested(klass, **kwargs_values)
+        end
       end
 
       data["id"] = record.id
