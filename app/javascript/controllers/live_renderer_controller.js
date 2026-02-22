@@ -1,34 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
+import { compileTemplate, decompress, morphElement, buildActionBody, routeMessage } from "./live_renderer_utils"
 
 const consumer = createConsumer()
 const log = (...args) => console.log("[live-renderer]", ...args)
-
-const templateCache = new Map()
-
-async function decompress(base64) {
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))
-  return new Response(stream).json()
-}
-
-function compileTemplate(source) {
-  if (templateCache.has(source)) return templateCache.get(source)
-
-  try {
-    const body = isBase64(source) ? atob(source) : source
-    const fn = new Function("data", body)
-    templateCache.set(source, fn)
-    return fn
-  } catch (e) {
-    log("ERROR compiling template:", e)
-    return null
-  }
-}
-
-function isBase64(str) {
-  return /^[A-Za-z0-9+/\n]+=*$/.test(str.trim())
-}
 
 function findSubscription(streamValue) {
   const identifier = JSON.stringify({ channel: "LiveComponentChannel", signed_stream_name: streamValue })
@@ -113,33 +88,34 @@ export default class extends Controller {
   }
 
   handleMessage(message) {
-    const { action, data } = message
+    const route = routeMessage(message, this.element.id, this.strategyValue)
 
-    if (action === "render" && data?.dom_id === this.element.id) {
-      log("render", this.element.id, data)
-      this.lastServerData = data
-      if (this.renderFn) this.render({ ...data, ...this.clientState })
-      return
-    }
+    switch (route.type) {
+      case "render":
+        log("render", this.element.id, route.data)
+        this.lastServerData = route.data
+        if (this.renderFn) this.render({ ...route.data, ...this.clientState })
+        break
 
-    if (this.strategyValue === "notify" && (action === "update" || action === "destroy")) {
-      log("update", this.element.id, { action, strategy: "notify" })
-      this.requestUpdate()
-      return
-    }
+      case "request_update":
+        log("update", this.element.id, { action: message.action, strategy: "notify" })
+        this.requestUpdate()
+        break
 
-    if (action === "update" && data?.dom_id === this.element.id) {
-      log("update", this.element.id, data)
-      this.lastServerData = data
-      if (this.renderFn) this.render({ ...data, ...this.clientState })
-      this.element.dispatchEvent(new CustomEvent("live-renderer:updated", {
-        bubbles: true,
-        detail: { data }
-      }))
-    } else if (action === "remove" && (message.dom_id || data?.dom_id) === this.element.id) {
-      this.element.remove()
-    } else if (action === "destroy" && data?.dom_id === this.element.id) {
-      this.element.remove()
+      case "update":
+        log("update", this.element.id, route.data)
+        this.lastServerData = route.data
+        if (this.renderFn) this.render({ ...route.data, ...this.clientState })
+        this.element.dispatchEvent(new CustomEvent("live-renderer:updated", {
+          bubbles: true,
+          detail: { data: route.data }
+        }))
+        break
+
+      case "remove":
+      case "destroy":
+        this.element.remove()
+        break
     }
   }
 
@@ -172,25 +148,8 @@ export default class extends Controller {
     const actionName = event.params.action
     if (!actionName || !this.hasActionUrlValue || !this.hasActionTokenValue) return
 
-    const body = new URLSearchParams({
-      token: this.actionTokenValue,
-      action_name: actionName
-    })
-
-    const stimulusParams = { ...event.params }
-    delete stimulusParams.action
-    const redirect = stimulusParams.redirect
-    delete stimulusParams.redirect
-    for (const [key, value] of Object.entries(stimulusParams)) {
-      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
-      body.append(`params[${snakeKey}]`, value)
-    }
-
-    if (event.type === "submit") {
-      for (const [key, value] of new FormData(event.target).entries()) {
-        body.append(`params[${key}]`, value)
-      }
-    }
+    const formData = event.type === "submit" ? new FormData(event.target) : null
+    const { body, redirect } = buildActionBody(actionName, this.actionTokenValue, event.params, formData)
 
     fetch(this.actionUrlValue, {
       method: "POST",
@@ -232,21 +191,6 @@ export default class extends Controller {
   }
 
   morph(newHtml) {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(`<div>${newHtml}</div>`, "text/html")
-    const newContent = doc.body.firstChild
-
-    if (typeof Idiomorph !== "undefined") {
-      Idiomorph.morph(this.element, newContent, {
-        morphStyle: "innerHTML",
-        ignoreActiveValue: true
-      })
-    } else {
-      this.element.innerHTML = newContent.innerHTML
-    }
-
-    this.element.classList.remove("live-morph-flash")
-    void this.element.offsetWidth
-    this.element.classList.add("live-morph-flash")
+    morphElement(this.element, newHtml)
   }
 }
