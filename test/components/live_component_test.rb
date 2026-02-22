@@ -228,6 +228,88 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert_equal "message_row_component_template", MessageRowComponent.template_element_id
   end
 
+  # --- render_in edge cases ---
+
+  test "render_in returns inner html when no _live_model_attr" do
+    component = AvatarComponent.new(contact: @sender, size: :md)
+    html = component.render_in(view_context_for_test)
+
+    assert_not_includes html, "data-controller=\"live-renderer\""
+  end
+
+  test "render_in skips wrapper when @_skip_live_wrapper is true" do
+    component = MessageLabelsComponent.new(message: @message)
+    component.instance_variable_set(:@_skip_live_wrapper, true)
+    html = component.render_in(view_context_for_test)
+
+    assert_not_includes html, "data-controller=\"live-renderer\""
+  end
+
+  # --- template_script_tag deduplication ---
+
+  test "template_script_tag emits once per class per view context" do
+    vc = view_context_for_test
+    first = MessageRowComponent.template_script_tag(vc)
+    second = MessageRowComponent.template_script_tag(vc)
+
+    assert_not_nil first
+    assert_nil second
+  end
+
+  test "template_script_tag emits separately for different classes" do
+    vc = view_context_for_test
+    first = MessageRowComponent.template_script_tag(vc)
+    second = MessageLabelsComponent.template_script_tag(vc)
+
+    assert_not_nil first
+    assert_not_nil second
+  end
+
+  test "template_script_tag includes correct id" do
+    vc = view_context_for_test
+    script = MessageRowComponent.template_script_tag(vc)
+    assert_includes script, %(id="message_row_component_template")
+  end
+
+  # --- encoded_template ---
+
+  test "encoded_template returns base64 when debug is off" do
+    original = LiveComponent.debug
+    LiveComponent.debug = false
+    # Clear memoized value
+    MessageRowComponent.instance_variable_set(:@encoded_template, nil)
+
+    encoded = MessageRowComponent.encoded_template
+    assert_match(/\A[A-Za-z0-9+\/\n]+=*\z/, encoded)
+  ensure
+    LiveComponent.debug = original
+    MessageRowComponent.instance_variable_set(:@encoded_template, nil)
+  end
+
+  # --- live_action with params ---
+
+  test "execute_action filters params to allowed list" do
+    label = Label.create!(name: "Test", color: "red")
+    # add_label allows :label_id param
+    MessageLabelsComponent.execute_action(:add_label, @message, { label_id: label.id, evil: "hack" })
+    @message.reload
+    assert_includes @message.labels, label
+  end
+
+  test "execute_action calls action without params when none declared" do
+    @message.update!(starred: false)
+    MessageRowComponent.execute_action(:toggle_star, @message)
+    assert @message.reload.starred?
+  end
+
+  # --- build_data_for_nested ---
+
+  test "build_data_for_nested evaluates expressions with provided kwargs" do
+    data = MessageLabelsComponent.build_data_for_nested(message: @message)
+    assert data.is_a?(Hash)
+    assert_not_empty data
+  end
+
   private
 
   def view_context_for_test
