@@ -69,4 +69,83 @@ class LiveComponent::DataEvaluatorTest < ActiveSupport::TestCase
     result = evaluator.evaluate("Label.count")
     assert_equal Label.count, result
   end
+
+  # --- evaluate_collection ---
+
+  test "evaluate_collection returns array of per-item hashes" do
+    Label.create!(name: "Important", color: "red")
+    Label.create!(name: "Work", color: "blue")
+
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageLabelsComponent)
+    computed = {
+      block_var: "label",
+      expressions: {
+        "v0" => { source: "label.name" },
+        "v1" => { source: "label.id.to_s" }
+      }
+    }
+    result = evaluator.evaluate_collection("Label.order(:name)", computed)
+
+    assert_equal Label.order(:name).count, result.size
+    assert result.all? { |item| item.is_a?(Hash) }
+    assert result.all? { |item| item.key?("v0") && item.key?("v1") }
+    names = result.map { |item| item["v0"] }
+    assert_includes names, "Important"
+    assert_includes names, "Work"
+  end
+
+  test "evaluate_collection returns empty array for nil collection" do
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageLabelsComponent)
+    computed = { block_var: "item", expressions: {} }
+    result = evaluator.evaluate_collection("@nonexistent_thing", computed)
+    assert_equal [], result
+  end
+
+  test "evaluate_collection with ivar-based collection" do
+    label = Label.create!(name: "Urgent", color: "red")
+    @message.labels << label
+
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageLabelsComponent)
+    computed = {
+      block_var: "label",
+      expressions: {
+        "v0" => { source: "label.name" }
+      }
+    }
+    result = evaluator.evaluate_collection("@message.labels", computed)
+
+    assert_equal 1, result.size
+    assert_equal "Urgent", result.first["v0"]
+  end
+
+  # --- method_missing delegation ---
+
+  test "respond_to_missing? returns true for component methods" do
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageRowComponent)
+    assert evaluator.respond_to?(:avatar_color, true)
+  end
+
+  test "respond_to_missing? returns false for nonexistent methods" do
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageRowComponent)
+    assert_not evaluator.respond_to?(:completely_made_up_method)
+  end
+
+  # --- render with skip_live_wrapper ---
+
+  test "render sets _skip_live_wrapper on live component" do
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageDetailComponent)
+    component = MessageLabelsComponent.new(message: @message)
+
+    html = evaluator.render(component)
+    assert html.is_a?(String)
+    assert_not_includes html, "data-controller=\"live-renderer\""
+  end
+
+  # --- constructor copies ivars from component ---
+
+  test "evaluator copies component ivars during initialization" do
+    evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageRowComponent)
+    # The component sets @message, so evaluator should have it too
+    assert_equal @message, evaluator.instance_variable_get(:@message)
+  end
 end
