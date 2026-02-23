@@ -130,15 +130,15 @@ class LiveComponent::DataEvaluatorTest < ActiveSupport::TestCase
     assert_not evaluator.respond_to?(:completely_made_up_method)
   end
 
-  # --- render with skip_live_wrapper ---
+  # --- render preserves live wrapper for nested live components ---
 
-  test "render sets _skip_live_wrapper on live component" do
+  test "render preserves live-renderer wrapper on nested live component" do
     evaluator = LiveComponent::DataEvaluator.new(:message, @message, component_class: MessageDetailComponent)
     component = MessageLabelsComponent.new(message: @message)
 
     html = evaluator.render(component)
     assert html.is_a?(String)
-    assert_not_includes html, "data-controller=\"live-renderer\""
+    assert_includes html, "data-controller=\"live-renderer\""
   end
 
   # --- constructor copies ivars from component ---

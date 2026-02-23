@@ -40,7 +40,6 @@ module LiveComponent
     end
 
     def render(renderable, &block)
-      renderable.instance_variable_set(:@_skip_live_wrapper, true) if renderable.class.include?(LiveComponent)
       ApplicationController.render(renderable, layout: false)
     end
 
