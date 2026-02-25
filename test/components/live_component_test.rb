@@ -302,6 +302,16 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert @message.reload.starred?
   end
 
+  # --- expression_field_map ---
+
+  test "expression_field_map returns source-to-key mapping" do
+    map = MessageRowComponent.expression_field_map
+    assert_kind_of Hash, map
+    # The map inverts expressions: Ruby source → JS key
+    assert_equal "v2", map["@message.sender.name"]
+    assert_equal "v8", map["@message.subject"]
+  end
+
   # --- build_data_for_nested ---
 
   test "build_data_for_nested evaluates expressions with provided kwargs" do

@@ -134,6 +134,10 @@ module LiveComponent
       end
     end
 
+    def expression_field_map
+      compiled_data[:expressions].invert
+    end
+
     def build_data_for_nested(**kwargs)
       evaluator = LiveComponent::DataEvaluator.new(nil, nil, component_class: self, **kwargs)
       data = {}
