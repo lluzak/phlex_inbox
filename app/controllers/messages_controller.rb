@@ -57,6 +57,7 @@ class MessagesController < ApplicationController
     )
 
     if @message.save
+      response.headers["X-Message-Dom-Id"] = ActionView::RecordIdentifier.dom_id(@message)
       if @message.replied_to_id.present?
         redirect_to message_path(@message.replied_to_id), notice: "Reply sent!"
       else

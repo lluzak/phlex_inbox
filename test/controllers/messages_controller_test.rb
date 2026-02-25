@@ -66,6 +66,34 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(only_work_msg)}']", count: 0
   end
 
+  test "create reply sets X-Message-Dom-Id header on success" do
+    original = Message.create!(subject: "Hi", body: "Hello", sender: @sender, recipient: @recipient, label: "inbox")
+
+    post messages_path, params: {
+      replied_to_id: original.id,
+      recipient_id: @sender.id,
+      subject: "Re: Hi",
+      body: "Thanks!"
+    }
+
+    assert_response :redirect
+    reply = Message.last
+    assert_equal "message_#{reply.id}", response.headers["X-Message-Dom-Id"]
+  end
+
+  test "create reply with validation error does not set X-Message-Dom-Id" do
+    original = Message.create!(subject: "Hi", body: "Hello", sender: @sender, recipient: @recipient, label: "inbox")
+
+    post messages_path, params: {
+      replied_to_id: original.id,
+      recipient_id: @sender.id,
+      subject: "Re: Hi",
+      body: ""
+    }
+
+    assert_nil response.headers["X-Message-Dom-Id"]
+  end
+
   test "sent with unread=1 applies filter" do
     unread_sent = Message.create!(subject: "Sent", body: "Body", sender: @recipient, recipient: @sender, label: "sent", read_at: nil)
     read_sent = Message.create!(subject: "SentRead", body: "Body", sender: @recipient, recipient: @sender, label: "sent", read_at: Time.current)
