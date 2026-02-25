@@ -7,4 +7,4 @@ pin "@hotwired/stimulus-loading", to: "stimulus-loading.js"
 pin "@rails/actioncable", to: "actioncable.esm.js"
 pin_all_from "app/javascript/controllers", under: "controllers"
 pin_all_from "app/javascript/lib", under: "lib"
-pin "animejs" # @4.3.6
+pin "animejs", to: "animejs.js" # @4.3.6
