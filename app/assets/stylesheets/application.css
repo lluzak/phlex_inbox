@@ -57,15 +57,17 @@ turbo-frame#message_list[busy] > :not(.skeleton) {
   transition: opacity 0.15s ease;
 }
 
-/* Message detail: hide skeleton when real content is present, fade on navigation */
+/* Message detail: skeleton hidden by default */
 turbo-frame#message_detail > .skeleton {
   display: none;
 }
 
-turbo-frame#message_detail > .skeleton:only-child {
+/* Show skeleton only on first load (no real content yet) */
+turbo-frame#message_detail[busy] > .skeleton:only-child {
   display: block;
 }
 
+/* Fade real content on subsequent navigations */
 turbo-frame#message_detail[busy] > :not(.skeleton) {
   opacity: 0.5;
   pointer-events: none;
