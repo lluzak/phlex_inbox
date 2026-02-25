@@ -15,7 +15,7 @@
 
     <div class="w-96 border-r border-gray-200 overflow-y-auto bg-white shrink-0">
       <turbo-frame id="message_list" src="<%= @message_list_path %>">
-        <div class="animate-pulse">
+        <div class="skeleton animate-pulse">
           <% 8.times do %>
             <%= render MessageRowSkeletonComponent.new %>
           <% end %>
@@ -24,16 +24,8 @@
     </div>
 
     <main class="flex-1 overflow-y-auto bg-white">
-      <turbo-frame id="message_detail">
-        <% if @message %>
-          <div data-controller="live-renderer"
-               data-live-renderer-action-url-value="<%= helpers.live_component_actions_path %>"
-               data-live-renderer-action-token-value="<%= MessageDetailComponent.live_action_token(@message) %>">
-            <%= render MessageDetailComponent.new(message: @message) %>
-          </div>
-        <% else %>
-          <%= render MessageDetailSkeletonComponent.new %>
-        <% end %>
+      <turbo-frame id="message_detail" <%= "src=\"#{@message_detail_path}\"" if @message_detail_path %>>
+        <%= render MessageDetailSkeletonComponent.new %>
       </turbo-frame>
     </main>
   </div>

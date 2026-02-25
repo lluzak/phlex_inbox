@@ -2,7 +2,7 @@
   <%= render InboxLayoutComponent.new(
     sidebar: SidebarComponent.new(current_folder: @folder, current_contact: current_contact),
     message_list_path: url_for(action: (@folder == "inbox" ? :index : @folder), only_path: true),
-    message: @message,
+    message_detail_path: @message ? message_path(@message) : nil,
     current_contact: current_contact
   ) %>
 

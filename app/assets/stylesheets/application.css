@@ -50,8 +50,27 @@
   white-space: nowrap;
 }
 
-turbo-frame[busy] > :not(.skeleton) {
+/* Message list: fade old content during navigation */
+turbo-frame#message_list[busy] > :not(.skeleton) {
   opacity: 0.5;
   pointer-events: none;
   transition: opacity 0.15s ease;
+}
+
+/* Message detail: show skeleton, hide old content during navigation */
+turbo-frame#message_detail > .skeleton {
+  display: none;
+}
+
+turbo-frame#message_detail[busy] > .skeleton {
+  display: block;
+}
+
+turbo-frame#message_detail[busy] > :not(.skeleton) {
+  display: none;
+}
+
+/* Show skeleton when it's the only child (initial lazy load) */
+turbo-frame > .skeleton:only-child {
+  display: block;
 }
