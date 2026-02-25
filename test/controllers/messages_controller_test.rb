@@ -23,7 +23,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     read_msg = Message.create!(subject: "Read", body: "Body", sender: @sender, recipient: @recipient, label: "inbox", read_at: Time.current)
     unread_msg = Message.create!(subject: "Unread", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
 
-    get root_path(unread: "1")
+    get root_path(unread: "1"), headers: { "Turbo-Frame" => "message_list" }
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(unread_msg)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(read_msg)}']", count: 0
@@ -33,7 +33,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     starred_msg = Message.create!(subject: "Star", body: "Body", sender: @sender, recipient: @recipient, label: "inbox", starred: true)
     normal_msg = Message.create!(subject: "Normal", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
 
-    get root_path(starred: "1")
+    get root_path(starred: "1"), headers: { "Turbo-Frame" => "message_list" }
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(starred_msg)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(normal_msg)}']", count: 0
@@ -45,7 +45,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     labeled_msg.labels << label
     unlabeled_msg = Message.create!(subject: "Other", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
 
-    get root_path(label_ids: [label.id])
+    get root_path(label_ids: [label.id]), headers: { "Turbo-Frame" => "message_list" }
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(labeled_msg)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(unlabeled_msg)}']", count: 0
@@ -60,7 +60,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     only_work_msg = Message.create!(subject: "Work only", body: "Body", sender: @sender, recipient: @recipient, label: "inbox")
     only_work_msg.labels << work
 
-    get root_path(label_ids: [work.id, urgent.id])
+    get root_path(label_ids: [work.id, urgent.id]), headers: { "Turbo-Frame" => "message_list" }
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(both_msg)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(only_work_msg)}']", count: 0
@@ -98,7 +98,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     unread_sent = Message.create!(subject: "Sent", body: "Body", sender: @recipient, recipient: @sender, label: "sent", read_at: nil)
     read_sent = Message.create!(subject: "SentRead", body: "Body", sender: @recipient, recipient: @sender, label: "sent", read_at: Time.current)
 
-    get sent_messages_path(unread: "1")
+    get sent_messages_path(unread: "1"), headers: { "Turbo-Frame" => "message_list" }
     assert_response :success
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(unread_sent)}']"
     assert_select "[id='#{ActionView::RecordIdentifier.dom_id(read_sent)}']", count: 0
