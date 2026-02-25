@@ -28,7 +28,7 @@
             <%= render MessageDetailComponent.new(message: @message) %>
           </div>
         <% else %>
-          <%= render EmptyStateComponent.new(title: "Select a message", description: "Choose a message from the list to read it.") %>
+          <%= render MessageDetailSkeletonComponent.new %>
         <% end %>
       </turbo-frame>
     </main>
