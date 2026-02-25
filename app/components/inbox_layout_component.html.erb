@@ -24,7 +24,7 @@
     </div>
 
     <main class="flex-1 overflow-y-auto bg-white">
-      <turbo-frame id="message_detail" <%= "src=\"#{@message_detail_path}\"" if @message_detail_path %>>
+      <turbo-frame id="message_detail" <% if @message_detail_path %>src="<%= @message_detail_path %>"<% end %>>
         <%= render MessageDetailSkeletonComponent.new %>
       </turbo-frame>
     </main>
