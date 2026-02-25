@@ -12,7 +12,7 @@
 ) %>
 
 <% if @messages.any? %>
-  <div id="message_items" data-controller="list-toggle" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white">
+  <div id="message_items" data-controller="list-toggle stagger-list" data-list-toggle-active-class="bg-blue-50" data-list-toggle-inactive-class="bg-white">
     <% @messages.each do |message| %>
       <div id="<%= dom_id(message) %>" class="bg-white" data-list-toggle-target="item">
         <%= render MessageRowComponent.new(message: message) %>
