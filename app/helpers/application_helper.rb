@@ -5,6 +5,6 @@ module ApplicationHelper
   end
 
   def optimistic_field_map_for(component_class)
-    component_class.compiled_data[:expressions].invert.to_json
+    component_class.expression_field_map.to_json
   end
 end

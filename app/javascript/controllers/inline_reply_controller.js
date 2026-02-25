@@ -18,14 +18,13 @@ export default class extends Controller {
     this.pendingOptimistic = null
     this.formTarget.addEventListener("turbo:submit-start", this.onSubmitStart)
     this.formTarget.addEventListener("turbo:submit-end", this.onSubmitEnd)
-    this.boundStreamInterceptor = this.onBeforeStreamRender.bind(this)
-    document.addEventListener("turbo:before-stream-render", this.boundStreamInterceptor)
+    document.addEventListener("turbo:before-stream-render", this.onBeforeStreamRender)
   }
 
   disconnect() {
     this.formTarget.removeEventListener("turbo:submit-start", this.onSubmitStart)
     this.formTarget.removeEventListener("turbo:submit-end", this.onSubmitEnd)
-    document.removeEventListener("turbo:before-stream-render", this.boundStreamInterceptor)
+    document.removeEventListener("turbo:before-stream-render", this.onBeforeStreamRender)
   }
 
   show() {
@@ -76,7 +75,7 @@ export default class extends Controller {
     this.buttonTarget.classList.remove("hidden")
   }
 
-  onSubmitEnd = async (event) => {
+  onSubmitEnd = (event) => {
     if (!this.pendingOptimistic) return
 
     const { element, reconciled, body } = this.pendingOptimistic
@@ -85,12 +84,13 @@ export default class extends Controller {
     if (event.detail.success) {
       if (reconciled) return
 
-      const response = event.detail.fetchResponse?.response
-      const realDomId = response?.headers?.get("X-Message-Dom-Id")
-
-      if (realDomId && element.isConnected) {
-        element.id = realDomId
-        element.style.opacity = ""
+      // The X-Message-Dom-Id header is on the 302 response which Turbo follows,
+      // so it's not accessible here. The broadcast reconciliation (onBeforeStreamRender)
+      // is the primary path. As a fallback, clear the faded style after a delay.
+      if (element.isConnected) {
+        setTimeout(() => {
+          if (element.isConnected) element.style.opacity = ""
+        }, 2000)
       }
     } else {
       if (element.isConnected) element.remove()
@@ -102,19 +102,31 @@ export default class extends Controller {
     }
   }
 
-  onBeforeStreamRender(event) {
+  onBeforeStreamRender = (event) => {
     if (!this.pendingOptimistic) return
 
     const stream = event.target
     if (stream.action !== "prepend" || stream.target !== this.targetIdValue) return
 
-    event.preventDefault()
-
+    // Verify the incoming content is from the current user to avoid
+    // intercepting broadcasts for other users' messages
     const template = stream.querySelector("template")
     if (!template) return
 
     const newContent = template.content.firstElementChild
     if (!newContent) return
+
+    // Check if sender name in the broadcast matches the current user
+    const senderEl = newContent.querySelector("[data-live-renderer-data-value]")
+    if (senderEl) {
+      try {
+        const data = JSON.parse(senderEl.getAttribute("data-live-renderer-data-value"))
+        const senderNameKey = this.fieldMapValue["@message.sender.name"]
+        if (senderNameKey && data[senderNameKey] !== this.currentUserNameValue) return
+      } catch { /* proceed without check */ }
+    }
+
+    event.preventDefault()
 
     const { element } = this.pendingOptimistic
     if (element.isConnected) {
