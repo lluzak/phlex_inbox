@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
-import { compileTemplate, decompress, morphElement, buildActionBody, routeMessage } from "./live_renderer_utils"
+import { compileTemplate, decompress, morphElement, buildActionBody, routeMessage } from "lib/live_renderer_utils"
 
 const consumer = createConsumer()
 const log = (...args) => console.log("[live-renderer]", ...args)

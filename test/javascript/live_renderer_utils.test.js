@@ -6,7 +6,7 @@ import {
   morphElement,
   buildActionBody,
   routeMessage
-} from "../../app/javascript/controllers/live_renderer_utils.js"
+} from "../../app/javascript/lib/live_renderer_utils.js"
 
 describe("isBase64", () => {
   it("returns true for valid base64 strings", () => {

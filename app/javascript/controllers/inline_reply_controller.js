@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
-import { compileTemplate } from "./live_renderer_utils"
-import { buildOptimisticData } from "./optimistic_utils"
+import { compileTemplate } from "lib/live_renderer_utils"
+import { buildOptimisticData } from "lib/optimistic_utils"
 
 export default class extends Controller {
   static targets = ["form", "button"]

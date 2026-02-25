@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildOptimisticData } from "../../app/javascript/controllers/optimistic_utils.js"
+import { buildOptimisticData } from "../../app/javascript/lib/optimistic_utils.js"
 
 describe("buildOptimisticData", () => {
   const fieldMap = {
