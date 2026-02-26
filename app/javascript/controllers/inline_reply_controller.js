@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { animate } from "animejs"
 import { compileTemplate } from "lib/live_renderer_utils"
 import { buildOptimisticData } from "lib/optimistic_utils"
 
@@ -30,7 +31,16 @@ export default class extends Controller {
   show() {
     this.formTarget.classList.remove("hidden")
     this.buttonTarget.classList.add("hidden")
-    this.formTarget.querySelector("textarea").focus()
+
+    animate(this.formTarget, {
+      opacity: [0, 1],
+      translateY: [-10, 0],
+      duration: 250,
+      easing: "outQuad",
+      onComplete: () => {
+        this.formTarget.querySelector("textarea").focus()
+      }
+    })
   }
 
   onSubmitStart = (event) => {

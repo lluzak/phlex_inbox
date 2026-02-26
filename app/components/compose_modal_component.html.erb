@@ -1,8 +1,8 @@
 <div data-compose-target="modal" class="hidden">
-  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 z-40" data-action="click->compose#close"></div>
+  <div data-compose-target="backdrop" class="fixed inset-0 bg-gray-500 bg-opacity-75 z-40" data-action="click->compose#close"></div>
 
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+    <div data-compose-target="panel" class="bg-white rounded-lg shadow-xl w-full max-w-lg">
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h3 class="text-lg font-semibold text-gray-900">
           New Message
