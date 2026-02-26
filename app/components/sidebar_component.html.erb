@@ -1,6 +1,8 @@
-<nav class="p-4 space-y-1" data-controller="sidebar"
-     data-sidebar-active-class="bg-blue-50 text-blue-700"
-     data-sidebar-inactive-class="text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+<nav class="p-4 space-y-1" data-controller="list-toggle"
+     data-list-toggle-active-class="bg-blue-50 text-blue-700"
+     data-list-toggle-inactive-class="text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+     data-list-toggle-icon-active-class-value="text-blue-600"
+     data-list-toggle-icon-inactive-class-value="text-gray-400">
   <%= render ButtonComponent.new(variant: :primary, class: "w-full justify-center mb-4", data: { action: "click->compose#open" }) do %>
     Compose
   <% end %>
@@ -8,7 +10,7 @@
   <% FOLDERS.each do |folder| %>
     <% active = @current_folder.to_s == folder[:key].to_s %>
     <% count = unread_count_for(folder[:scope]) %>
-    <%= link_to folder_path(folder[:key]), class: folder_link_classes(active), data: { turbo_frame: "message_list", sidebar_target: "link", action: "click->sidebar#select" } do %>
+    <%= link_to folder_path(folder[:key]), class: folder_link_classes(active), data: { turbo_frame: "message_list", list_toggle_target: "item", action: "click->list-toggle#select" } do %>
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 <%= active ? 'text-blue-600' : 'text-gray-400' %>">
