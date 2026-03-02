@@ -1,0 +1,89 @@
+<div data-controller="dev-toolbar" class="fixed bottom-4 right-4 z-50 font-sans text-sm">
+  <%# Collapsed pill button %>
+  <button
+    data-action="dev-toolbar#toggle"
+    class="flex items-center gap-1.5 rounded-full bg-gray-800 px-3 py-1.5 text-white shadow-lg hover:bg-gray-700 transition-colors"
+    title="Dev Tools"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+    </svg>
+    <span class="text-xs font-medium">Dev</span>
+  </button>
+
+  <%# Expanded panel %>
+  <div
+    data-dev-toolbar-target="panel"
+    class="hidden absolute bottom-10 right-0 w-64 rounded-lg bg-gray-800 text-white shadow-2xl overflow-hidden"
+  >
+    <%# Header %>
+    <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+      <span class="font-semibold text-xs uppercase tracking-wide text-gray-300">Dev Tools</span>
+      <button data-action="dev-toolbar#close" class="text-gray-400 hover:text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+
+    <%# Toggles %>
+    <div class="divide-y divide-gray-700">
+      <%# Debug Wrappers %>
+      <div class="flex items-center justify-between px-3 py-2">
+        <span class="text-xs text-gray-300">Debug Wrappers</span>
+        <button data-action="dev-toolbar#toggleDebug" data-dev-toolbar-target="debugToggle" class="relative">
+          <div data-track class="w-8 h-4 rounded-full bg-gray-300 transition-colors"></div>
+          <div data-dot class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform translate-x-0"></div>
+        </button>
+      </div>
+
+      <%# Turbo Frames %>
+      <div class="flex items-center justify-between px-3 py-2">
+        <span class="text-xs text-gray-300">Turbo Frames</span>
+        <button data-action="dev-toolbar#toggleTurboFrames" data-dev-toolbar-target="turboToggle" class="relative">
+          <div data-track class="w-8 h-4 rounded-full bg-gray-300 transition-colors"></div>
+          <div data-dot class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform translate-x-0"></div>
+        </button>
+      </div>
+
+      <%# Stimulus Debug %>
+      <div class="flex items-center justify-between px-3 py-2">
+        <span class="text-xs text-gray-300">Stimulus Debug</span>
+        <button data-action="dev-toolbar#toggleStimulusDebug" data-dev-toolbar-target="stimulusToggle" class="relative">
+          <div data-track class="w-8 h-4 rounded-full bg-gray-300 transition-colors"></div>
+          <div data-dot class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform translate-x-0"></div>
+        </button>
+      </div>
+
+      <%# Animations %>
+      <div class="flex items-center justify-between px-3 py-2">
+        <span class="text-xs text-gray-300">Animations</span>
+        <button data-action="dev-toolbar#toggleAnimations" data-dev-toolbar-target="animationsToggle" class="relative">
+          <div data-track class="w-8 h-4 rounded-full bg-gray-300 transition-colors"></div>
+          <div data-dot class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform translate-x-0"></div>
+        </button>
+      </div>
+    </div>
+
+    <%# Keyboard shortcuts %>
+    <div class="px-3 py-2 border-t border-gray-700">
+      <span class="text-xs text-gray-400 font-medium">Shortcuts</span>
+      <div class="mt-1 flex gap-3 text-xs text-gray-300">
+        <span><kbd class="px-1 rounded bg-gray-700 font-mono">j</kbd> down</span>
+        <span><kbd class="px-1 rounded bg-gray-700 font-mono">k</kbd> up</span>
+        <span><kbd class="px-1 rounded bg-gray-700 font-mono">s</kbd> star</span>
+      </div>
+    </div>
+
+    <%# Simulate message %>
+    <div class="px-3 py-2 border-t border-gray-700">
+      <button
+        data-action="dev-toolbar#simulateMessage"
+        data-simulate-btn
+        class="w-full rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 transition-colors"
+      >
+        Simulate Message
+      </button>
+    </div>
+  </div>
+</div>

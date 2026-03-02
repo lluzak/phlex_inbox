@@ -309,7 +309,7 @@ class LiveComponentTest < ActiveSupport::TestCase
     assert_kind_of Hash, map
     # The map inverts expressions: Ruby source → JS key
     assert_equal "v2", map["@message.sender.name"]
-    assert_equal "v8", map["@message.subject"]
+    assert_equal "v9", map["@message.subject"]
   end
 
   # --- build_data_for_nested ---

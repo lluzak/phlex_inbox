@@ -3,13 +3,20 @@
 <% end %>
 
 <div class="h-screen flex flex-col">
-  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
-    <h1 class="text-xl font-bold text-gray-900">Phlex Inbox</h1>
-    <%= render SearchBarComponent.new %>
+  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0"
+          data-controller="global-presence">
+    <div class="flex items-center gap-3">
+      <a href="<%= root_path %>" class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors" data-turbo-action="advance">Reactive Components</a>
+      <span data-global-presence-target="self"></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <div data-global-presence-target="avatars"></div>
+      <%= render SearchBarComponent.new %>
+    </div>
   </header>
 
   <div class="flex flex-1 overflow-hidden">
-    <aside class="w-56 bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+    <aside class="w-14 lg:w-56 bg-white border-r border-gray-200 overflow-y-auto shrink-0 transition-all duration-200">
       <%= render @sidebar %>
     </aside>
 

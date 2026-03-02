@@ -30,6 +30,12 @@
     Mark unread
   </button>
 </div>
+<%# Presence indicator %>
+<div class="px-6 pt-2" data-controller="presence"
+     data-presence-message-id-value="<%= @message.id %>"
+     data-presence-mode-value="detail">
+  <div data-presence-target="indicator" class="hidden"></div>
+</div>
 <%# Labels %>
 <div data-controller="live-renderer"
      data-live-renderer-action-url-value="<%= live_component_actions_path %>"

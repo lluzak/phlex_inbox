@@ -21,5 +21,6 @@ Rails.application.routes.draw do
 
   if Rails.env.development?
     get "dev/live_components", to: "dev/live_components#index"
+    post "dev/simulate", to: "dev/simulate#create"
   end
 end

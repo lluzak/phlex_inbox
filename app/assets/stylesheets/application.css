@@ -50,6 +50,30 @@
   white-space: nowrap;
 }
 
+/* Custom scrollbars — thin, subtle, rounded */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}
+
 /* Message list: fade old content during navigation */
 turbo-frame#message_list[busy] > :not(.skeleton) {
   opacity: 0.5;

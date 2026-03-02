@@ -3,7 +3,11 @@ import { createConsumer } from "@rails/actioncable"
 import { compileTemplate, decompress, morphElement, buildActionBody, routeMessage } from "lib/live_renderer_utils"
 
 const consumer = createConsumer()
-const log = (...args) => console.log("[live-renderer]", ...args)
+const log = (...args) => {
+  if (localStorage.getItem("devToolbar:debug") !== "false") {
+    console.log("[live-renderer]", ...args)
+  }
+}
 
 function findSubscription(streamValue) {
   const identifier = JSON.stringify({ channel: "LiveComponentChannel", signed_stream_name: streamValue })
@@ -51,7 +55,8 @@ export default class extends Controller {
     data: { type: Object, default: {} },
     strategy: { type: String, default: "push" },
     component: { type: String, default: "" },
-    params: { type: Object, default: {} }
+    params: { type: Object, default: {} },
+    fieldMap: { type: Object, default: {} }
   }
 
   connect() {
@@ -148,6 +153,20 @@ export default class extends Controller {
     const actionName = event.params.action
     if (!actionName || !this.hasActionUrlValue || !this.hasActionTokenValue) return
 
+    // --- Optimistic update ---
+    const optimisticExpr = event.params.optimistic
+    let rollbackData = null
+
+    if (optimisticExpr && this.lastServerData && this.renderFn && this.fieldMapValue) {
+      const dataKey = this.fieldMapValue[optimisticExpr]
+      if (dataKey && dataKey in this.lastServerData) {
+        rollbackData = { ...this.lastServerData }
+        this.lastServerData[dataKey] = !this.lastServerData[dataKey]
+        this.render({ ...this.lastServerData, ...this.clientState })
+      }
+    }
+    // --- End optimistic ---
+
     const formData = event.type === "submit" ? new FormData(event.target) : null
     const { body, redirect } = buildActionBody(actionName, this.actionTokenValue, event.params, formData)
 
@@ -158,6 +177,10 @@ export default class extends Controller {
       },
       body
     }).then(response => {
+      if (!response.ok && rollbackData) {
+        this.lastServerData = rollbackData
+        this.render({ ...this.lastServerData, ...this.clientState })
+      }
       if (redirect && response.ok) {
         Turbo.visit(redirect)
       } else if (response.ok && response.headers.get("content-type")?.includes("text/html")) {
@@ -165,6 +188,11 @@ export default class extends Controller {
       }
     }).then(html => {
       if (html) this.morph(html)
+    }).catch(() => {
+      if (rollbackData) {
+        this.lastServerData = rollbackData
+        this.render({ ...this.lastServerData, ...this.clientState })
+      }
     })
   }
 

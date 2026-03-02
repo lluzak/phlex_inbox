@@ -1,25 +1,30 @@
-<nav class="p-4 space-y-1" data-controller="list-toggle"
+<nav class="p-2 lg:p-4 space-y-1" data-controller="list-toggle"
      data-list-toggle-active-class="bg-blue-50 text-blue-700"
      data-list-toggle-inactive-class="text-gray-700 hover:bg-gray-50 hover:text-gray-900"
      data-list-toggle-icon-active-class-value="text-blue-600"
      data-list-toggle-icon-inactive-class-value="text-gray-400">
   <%= render ButtonComponent.new(variant: :primary, class: "w-full justify-center mb-4", data: { action: "click->compose#open" }) do %>
-    Compose
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 lg:hidden">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+    <span class="hidden lg:inline">Compose</span>
   <% end %>
 
   <% FOLDERS.each do |folder| %>
     <% active = @current_folder.to_s == folder[:key].to_s %>
     <% count = unread_count_for(folder[:scope]) %>
-    <%= link_to folder_path(folder[:key]), class: folder_link_classes(active), data: { turbo_frame: "message_list", list_toggle_target: "item", action: "click->list-toggle#select" } do %>
-      <div class="flex items-center justify-between w-full">
+    <%= link_to folder_path(folder[:key]), class: folder_link_classes(active), data: { turbo_frame: "message_list", turbo_action: "advance", list_toggle_target: "item", action: "click->list-toggle#select" } do %>
+      <div class="flex items-center lg:justify-between w-full justify-center">
         <div class="flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 <%= active ? 'text-blue-600' : 'text-gray-400' %>">
             <path stroke-linecap="round" stroke-linejoin="round" d="<%= folder[:icon] %>" />
           </svg>
-          <span class="ml-3"><%= folder[:label] %></span>
+          <span class="ml-3 hidden lg:inline"><%= folder[:label] %></span>
         </div>
         <% if count.positive? %>
-          <%= render BadgeComponent.new(count: count) %>
+          <span class="hidden lg:inline">
+            <%= render BadgeComponent.new(count: count) %>
+          </span>
         <% end %>
       </div>
     <% end %>

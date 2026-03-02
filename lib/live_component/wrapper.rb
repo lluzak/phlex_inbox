@@ -21,6 +21,7 @@ module LiveComponent
       if component_class._live_actions.any?
         attrs << %(data-live-renderer-action-url-value="#{Rails.application.routes.url_helpers.live_component_actions_path}")
         attrs << %(data-live-renderer-action-token-value="#{component_class.live_action_token(record)}")
+        attrs << %(data-live-renderer-field-map-value="#{ERB::Util.html_escape(component_class.expression_field_map.to_json)}")
       end
 
       if client_state

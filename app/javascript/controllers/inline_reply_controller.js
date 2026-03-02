@@ -12,7 +12,8 @@ export default class extends Controller {
     fieldMap: Object,
     templateId: String,
     targetId: String,
-    subject: String
+    subject: String,
+    messageId: Number
   }
 
   connect() {
@@ -23,14 +24,37 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.dispatchPresenceStatus("viewing")
+    this.removeTypingListeners()
     this.formTarget.removeEventListener("turbo:submit-start", this.onSubmitStart)
     this.formTarget.removeEventListener("turbo:submit-end", this.onSubmitEnd)
     document.removeEventListener("turbo:before-stream-render", this.onBeforeStreamRender)
   }
 
+  removeTypingListeners() {
+    const textarea = this.formTarget.querySelector("textarea")
+    if (this.typingInputHandler) {
+      textarea?.removeEventListener("input", this.typingInputHandler)
+      textarea?.removeEventListener("focus", this.typingInputHandler)
+      this.typingInputHandler = null
+    }
+    if (this.typingBlurHandler) {
+      textarea?.removeEventListener("blur", this.typingBlurHandler)
+      this.typingBlurHandler = null
+    }
+  }
+
   show() {
     this.formTarget.classList.remove("hidden")
-    this.buttonTarget.classList.add("hidden")
+    this.buttonTarget.style.display = "none"
+
+    this.dispatchPresenceStatus("typing")
+    const textarea = this.formTarget.querySelector("textarea")
+    this.typingInputHandler = () => this.dispatchPresenceStatus("typing")
+    this.typingBlurHandler = () => this.dispatchPresenceStatus("viewing")
+    textarea?.addEventListener("input", this.typingInputHandler)
+    textarea?.addEventListener("blur", this.typingBlurHandler)
+    textarea?.addEventListener("focus", this.typingInputHandler)
 
     animate(this.formTarget, {
       opacity: [0, 1],
@@ -38,12 +62,22 @@ export default class extends Controller {
       duration: 250,
       easing: "outQuad",
       onComplete: () => {
-        this.formTarget.querySelector("textarea").focus()
+        textarea?.focus()
       }
     })
   }
 
+  dispatchPresenceStatus(status) {
+    if (!this.messageIdValue) return
+    document.dispatchEvent(new CustomEvent("presence:status", {
+      detail: { messageId: this.messageIdValue, status }
+    }))
+  }
+
   onSubmitStart = (event) => {
+    this.dispatchPresenceStatus("viewing")
+    this.removeTypingListeners()
+
     const form = this.formTarget.querySelector("form")
     const textarea = form?.querySelector("textarea[name='body']")
     const body = textarea?.value?.trim()
@@ -82,7 +116,7 @@ export default class extends Controller {
     // Reset form for clean UX
     textarea.value = ""
     this.formTarget.classList.add("hidden")
-    this.buttonTarget.classList.remove("hidden")
+    this.buttonTarget.style.display = ""
   }
 
   onSubmitEnd = (event) => {
@@ -108,7 +142,7 @@ export default class extends Controller {
       const textarea = this.formTarget.querySelector("textarea[name='body']")
       if (textarea) textarea.value = body
       this.formTarget.classList.remove("hidden")
-      this.buttonTarget.classList.add("hidden")
+      this.buttonTarget.style.display = "none"
     }
   }
 
