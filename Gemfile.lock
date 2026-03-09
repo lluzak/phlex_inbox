@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/ruby2js/ruby2js.git
-  revision: e355249f6a2480c7f4812db21dea37531a875c9d
+  revision: ff2030b264957dcac40b4713a383e20d82785171
   specs:
     ruby2js (5.1.2)
       parser
@@ -199,7 +199,7 @@ GEM
       racc (~> 1.4)
     ostruct (0.6.3)
     parallel (1.27.0)
-    parser (3.3.10.1)
+    parser (3.3.10.2)
       ast (~> 2.4.1)
       racc
     pp (0.6.3)
